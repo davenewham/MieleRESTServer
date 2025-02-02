@@ -1,0 +1,27 @@
+
+rest:
+    - resource: http://[[YOUR_SERVER_IP_HERE]]:5001/generate-summary/washer
+      scan_interval: 30
+      sensor:
+        - name: "washer"
+          value_template: "{{ value_json.DecodedProgramPhase }}"
+          json_attributes:
+             - "Progress"
+             - "DecodedProgramID"
+             - "SignalDoor"
+             - "Light"
+             - "RemainingMinutes"
+             - "ElapsedMinutes"
+    - resource: http://[[YOUR_SERVER_IP_HERE]]:5001/generate-summary/dryer
+      scan_interval: 30
+      sensor:
+        - name: "dryer"
+          value_template: "{{ value_json.DecodedProgramPhase }}"
+          json_attributes:
+             - "Progress"
+             - "DecodedProgramID"
+             - "SignalDoor"
+             - "Light"
+             - "RemainingMinutes"
+             - "ElapsedMinutes"
+
