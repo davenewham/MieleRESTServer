@@ -25,12 +25,28 @@ import hashlib
 import binascii
 import sys
 import json
+import pprint
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 import requests
 import secrets
 
+class Dop2StringField:
+    def __init__ (self, fieldNumber, payload, cursor):
+        self.fieldType=payload[cursor];
+        contentLength=(payload[cursor+1]<<8) + payload[cursor+2]
+        if (cursor < len(payload) and payload[cursor]==0x00):
+            contentLength=contentLength+1;
+
+        cursor=cursor+2
+
+        self.fieldNumber=fieldNumber;
+        self.stringData=payload[cursor+1:cursor+contentLength].strip(bytes([0x00]));
+        self.wireLength=contentLength+4;
+       
+    def __str__ (self):
+        return f"Field {self.fieldNumber}, type {self.fieldType}, wire length {self.wireLength}, string data {self.stringData}";
 class MieleProvisioningInfo:
     def __init__ (self, groupid="", groupkey=""):
         self.groupkey=bytearray.fromhex(groupkey);
@@ -40,14 +56,14 @@ class MieleProvisioningInfo:
     def get_signature_key(self):
         return self.groupkey;
     def generate_random():
-        return MieleProvisioningInfo(groupid=secrets.token_hex(16), groupkey=secrets.token_hex(64))
+        return MieleProvisioningInfo(groupid=secrets.token_hex(8), groupkey=secrets.token_hex(64))
     def to_dict(self):
         return { "GroupID": self.groupid, "GroupKey": str(self.groupkey.hex().upper()) }
     def __str__(self):
         return f'''groupId: "{self.groupid}"
         groupKey: {str(self.groupkey.hex())}'''
     def to_pairing_json(self):
-        return json.dumps(self.to_dict());
+        return json.dumps(self.to_dict(), sort_keys=True);
 
 class MieleCryptoProvider:
     def __init__ (self, provisioningInfo):
@@ -147,6 +163,7 @@ class MieleCryptoProvider:
         rootNode=self.readDop2Node(host) #get root node
 #        j=json.loads(rootNode);
         dopTree={};
+        flattened={}
         for x in rootNode:  # visit each child node
             print(f"Exploring child node {x}");
             dopTree[x]={};
@@ -157,11 +174,22 @@ class MieleCryptoProvider:
                 try:
                     leafData=self.readDop2Leaf(host, x, leafId);
                     print(f"read leaf {leafId} in node {x}:");
-                    dopTree[x][leafId]=leafData;
-                    print(leafData);
-                except:
-                    dopTree[x][leafId]="error";
-        print([x.keys() for x in dopTree.values()]);
+                    for fieldId, fieldData in enumerate(leafData):
+                        flattened[f"{x}_{leafId}_{fieldId}"]=str(fieldData);
+                #    if isinstance(dopTree[x][leafId],(bytes,bytearray)): 
+                #        dopTree[x][leafId]=binascii.hexlify(dopTree[x][leafId]," ", bytes_per_sep=2);
+                #    else:
+                    dopTree[x][leafId]=str(leafData)
+#                     print(leafData);
+                except Exception as e:
+                    dopTree[x][leafId]=str(e);
+                    flattened[f"{x}_{leafId}"]=str(e);
+        print(dopTree);
+#        dopTree=sorted(dopTree.items(), key=lambda kv: str(kv[1]));
+        dump=json.dumps(flattened,indent=4);
+        with open("doptree.txt", "w+") as f:
+            f.write(dump);
+#        print([x.keys() for x in dopTree.values()]);
     def readDop2Leaf (self, host, node, leaf):
         fields=[];
         deviceRoute="000177753917"
@@ -193,7 +221,7 @@ class MieleCryptoProvider:
             else:
                 payload_type=(payload[3] << 0) + (payload[4] << 8); # 8 byte header
             print(f"header indicates number of fields: {payload_type}");
-
+            numberFields=payload_type;
             payload_hmm=(payload[5] << 0) ; # 8 byte header
             print(f"{payload_hmm} data type:");
 
@@ -210,58 +238,106 @@ class MieleCryptoProvider:
             while (currentField <= payload_type):
                 fieldHeader=payload[cursor];
                 if (currentField != fieldHeader):
-                    raise Exception(f"Protocol violation -- fields not sequentially numbered; expected {currentField}, found {fieldHeader}");
+                    break;
+                    raise Exception(f"Protocol violation -- fields not sequentially numbered; expected {currentField}, found {fieldHeader}, lastField={fields[-1]}");
                 cursor=cursor+1;
                 fieldType = payload[cursor];
                 print (f"Field numbering correct. Decoding field {currentField}, type={fieldType}");
                 match fieldType:
+                    case 21:
+                        print("skip 13")
+                        cursor=cursor+14;
+                    case 16:
+                        byte0=payload[cursor+1]
+                        byte1=payload[cursor+2]
+                        byte2=payload[cursor+3]
+                        startPacket=cursor;
+                        cursor=cursor+4;
+                        myCounter=1;
+                        counter=payload[cursor] # get counter element from wire
+                        elementLength=0;
+                        match byte1:
+                            case 0x06:
+                                elementLength=3;
+                            case 0x03:
+                                elementLength=2;
+                            case _:
+                                elementLength=0
+                                break;
+                        elementLength=elementLength+2;
+                        while (counter == myCounter):
+                            print(f"decoding {counter} array entry, elementLEngth={elementLength}");
+                            cursor=cursor+elementLength;
+                            counter=payload[cursor];
+                            myCounter=myCounter+1;
+                        info=f"{[byte0,byte1,byte2]} unknown array, packet counter={counter}, myCounter={myCounter}, element type {byte1}, detected element length {elementLength}, currentField={currentField}, totalFields={numberFields}, payload left={len(payload[startPacket:])}, contentLeft={binascii.hexlify(payload[startPacket:], sep=' ', bytes_per_sep=2)}";
+                        raise Exception(f"unknown array -- {info}");
                     case 0x02:
                         print("2-byte mystery")
-                        fields.append(payload[cursor+1:cursor+2])
+                        fields.append([fieldType, payload[cursor+1:cursor+2] ])
                         cursor=cursor+3;
-                    case 0x07:
-                        print ("3-byte mystery");
-                        fields.append(payload[cursor+1:cursor+3])
-
+                    case 0x07: #only 0x01 and 0x00 seen here
+                        print ("3-byte flags");
+                        fields.append([fieldType, payload[cursor+1:cursor+4]])
                         cursor=cursor+4;
                     case 0x03:
                         print ("2-byte mystery");
+                        fields.append([fieldType, payload[cursor+1:cursor+3]])
+
                         cursor=cursor+3;
                     case 0x04:
-                        elements=0;
-#                        while (payload[cursor+elements]!= 0x00):
-#                            elements=elements+1;
-#                        variable=payload[cursor+1]
+                        fields.append([fieldType, payload[cursor+1:cursor+3] ])
                         cursor=cursor+3;
-                        print(f"variable-length mystery (2-byte array?), elements={elements}")
+                        print(f"3-byte mystery ")
                     case 0x05:
                         #contentBytes=payload[cursor+2] & 0xF;
                         #elementLength=payload[cursor+5]
+                        fields.append([fieldType, payload[cursor+1:cursor+4] ])
                         print("4 byte mystery?")
                         #print(f"variable length mystery {contentBytes} elements/content bytes (could be strings), {elementLength} bytes per element");
                         cursor=cursor+ 4; #3 byte mystery?
+                    case 0x06:
+                        print ("3-byte mystery");
+                        fields.append([fieldType, payload[cursor+1:cursor+3]])
+
+                        cursor=cursor+4;
+
                     case 0x08:
                         print(f"5-byte mystery");
+                        fields.append([fieldType, payload[cursor+1:cursor+6]])
+
                         cursor=cursor+ 6;
 
-                    case 0x12:
-                        stringLength=(payload[cursor+1]<<8) + payload[cursor+2] + 1
-                        cursor=cursor+2;
-                        stringData=payload[cursor+1:cursor+stringLength]
-                        fields.append(stringData)
-
-                        print(f"string length {stringLength}, data={stringData}");
-                        cursor=cursor+len(stringData)+1;
-                        if (cursor < len(payload) and payload[cursor]==0x00):
-                            cursor=cursor+1;
+                    case 0x12: # confirmed to be a string
+                        print (f"String field");
+                        try:
+                            field=Dop2StringField(currentField, payload, cursor);
+                            cursor=cursor+field.wireLength
+                            print(field);
+                            print(payload[cursor:])
+                            fields.append(str(field))
+                        except Exception as e:
+                            print(f"Error generating string field: " + str(e));
+#                            continue;
+                        print (f"String field: {field}");
                     case 0x19:
                         byte0=payload[cursor+1]
                         byte1=payload[cursor+2]
                         print(f"4-byte (dynamic length?) mystery {byte0}, {byte1}");
-                        cursor=cursor+(byte1*4)+4;
+                        payloadLength=(byte1*4)+4;
+                        fields.append([fieldType,payload[cursor+3:cursor+payloadLength]]);
+                        cursor=cursor+payloadLength;
+#                    case 23:
+#                        print(f"epic array -- payload length {byte1}");
+#                        byte0=payload[cursor+1]
+#                        byte1=payload[cursor+2]
+#                        payloadLength=byte1;
+
+#                        fields.append([fieldType, payload[cursor+3:cursor+3+payloadLength]]);
+#                        cursor=cursor+byte1+3
                     case 0x09:
                         print(f"4-byte mystery");
-                        fields.append(payload[cursor+1:cursor+5])
+                        fields.append([fieldType, payload[cursor+1:cursor+5]])
 
                         cursor=cursor+4;
                     case 0x01:
@@ -283,13 +359,15 @@ class MieleCryptoProvider:
                         print("4 byte mystery") # Devices/000187683192/DOP2/1/17
                         cursor=cursor+5;
                     case 0x21:
+                        field=Dop2StringField(currentField, payload, cursor);
                         print("string array?") # Devices/000187683192/DOP2/1/17
-                        
+                        cursor=cursor+field.wireLength
+                        print(field);
+                        fields.append(field);
                     case _:
                         print("unknown");
-                        break;
+                        raise Exception(f"Unknown field type {fieldType} encountered in field {currentField}, {binascii.hexlify(payload[cursor:], sep=' ', bytes_per_sep=2)}, total fields {numberFields}")
                 currentField=currentField+1;
-
         return fields;
 
 if __name__ == '__main__':
@@ -378,7 +456,7 @@ if __name__ == '__main__':
 #                            elements=elements+1;
 #                        variable=payload[cursor+1]
                         cursor=cursor+3;
-                        print(f"variable-length mystery (2-byte array?), elements={elements}")
+#                        print(f"variable-length mystery (2-byte array?), elements={elements}")
                     case 0x05:
                         #contentBytes=payload[cursor+2] & 0xF;
                         #elementLength=payload[cursor+5]
@@ -388,9 +466,10 @@ if __name__ == '__main__':
                     case 0x08:
                         print(f"5-byte mystery");
                         cursor=cursor+ 6;
-
+                    case 23:
+                        print(f"64-byte array?");
+                        cursor=cursor+64;
                     case 0x12:
-                        stringLength=(payload[cursor+1]<<8) + payload[cursor+2] + 1
                         cursor=cursor+2;
                         stringData=payload[cursor+1:cursor+stringLength]
                         print(f"string length {stringLength}, data={stringData}");
