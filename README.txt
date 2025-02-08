@@ -55,7 +55,7 @@ Connect to the same WiFi as the Miele device.
 
 Generate device keys using the provided "generate-keys.py" script.
 
-> ./generate-keys.py > provisioning/keys.json
+> ./generate-keys.py > helpers/keys.json
 
 Then run the provisioning script with the IP of your Miele device. Example:
 
@@ -73,7 +73,9 @@ references it. Edit the file to enter the Miele device IPs and the same keys you
 created in Step 3.
 
 On all devices I have seen, the device route is identical to the device serial
-number. Specify the device route as "auto" if you do not know. If "auto", the
+number zero padded on the left to form a 13-digit number, e.g. "0001234567891".
+
+Specify the device route as "auto" if you do not know. If "auto", the
 server will detect it upon startup, and print it in the log. You can update the
 config to include the route to save the auto-detection step on startup.
 

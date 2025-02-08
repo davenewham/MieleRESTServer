@@ -32,6 +32,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import requests
 import secrets
 
+class Dop2DataField:
+    def __init__ (self, fieldNumber, payload, cursor):
+        self.fieldType=payload[cursor];
+    def __dict__ (self):
+        return {}
+
 class Dop2StringField:
     def __init__ (self, fieldNumber, payload, cursor):
         self.fieldType=payload[cursor];
@@ -44,9 +50,13 @@ class Dop2StringField:
         self.fieldNumber=fieldNumber;
         self.stringData=payload[cursor+1:cursor+contentLength].strip(bytes([0x00]));
         self.wireLength=contentLength+4;
-       
+    def __dict__ (self):
+        return {}
+        #return {"payload": str(self.stringData), "wireLength" : self.wireLength, "fieldNumber" : self.fieldNumber}
     def __str__ (self):
         return f"Field {self.fieldNumber}, type {self.fieldType}, wire length {self.wireLength}, string data {self.stringData}";
+    def __repr__ (self):
+        return self.__str__();
 class MieleProvisioningInfo:
     def __init__ (self, groupid="", groupkey=""):
         self.groupkey=bytearray.fromhex(groupkey);
@@ -152,27 +162,27 @@ class MieleCryptoProvider:
             raise Exception("DOP2 decoding not ready for prime time");
         else:
             raise Exception(f"Unknown content type returned from device: {full.headers['Content-Type']}");
-    def readDop2Node (self, host, node=""):
-        deviceRoute="000187683192"
+    def readDop2Node (self, host, deviceRoute, node=""):
+#        deviceRoute="000187683192"
         resourcePath=f"Devices/{deviceRoute}/DOP2/{node}"
         [response, r]=self.sendHttpRequest(httpMethod="GET", host=host, resourcePath=resourcePath); 
         return json.loads(response);
 #        if (node==""): #we are reading root node
 #            
-    def readDop2Recursive (self, host):
-        rootNode=self.readDop2Node(host) #get root node
+    def readDop2Recursive (self, host, deviceRoute):
+        rootNode=self.readDop2Node(host, deviceRoute) #get root node
 #        j=json.loads(rootNode);
         dopTree={};
         flattened={}
         for x in rootNode:  # visit each child node
             print(f"Exploring child node {x}");
             dopTree[x]={};
-            leaves=self.readDop2Node(host, node=x); #read all leaves in child node
+            leaves=self.readDop2Node(host, deviceRoute, node=x); #read all leaves in child node
             print(f"Leaves {leaves} for node {x}");
             for leafId in set(leaves):
                 print(f"reading leaf {leafId} in node {x}");
                 try:
-                    leafData=self.readDop2Leaf(host, x, leafId);
+                    leafData=self.readDop2Leaf(host, x, deviceRoute, leafId);
                     print(f"read leaf {leafId} in node {x}:");
                     for fieldId, fieldData in enumerate(leafData):
                         flattened[f"{x}_{leafId}_{fieldId}"]=str(fieldData);
@@ -180,6 +190,7 @@ class MieleCryptoProvider:
                 #        dopTree[x][leafId]=binascii.hexlify(dopTree[x][leafId]," ", bytes_per_sep=2);
                 #    else:
                     dopTree[x][leafId]=str(leafData)
+#                    dopTree[x][leafId]=leafData
 #                     print(leafData);
                 except Exception as e:
                     dopTree[x][leafId]=str(e);
@@ -187,13 +198,12 @@ class MieleCryptoProvider:
         print(dopTree);
 #        dopTree=sorted(dopTree.items(), key=lambda kv: str(kv[1]));
         dump=json.dumps(flattened,indent=4);
-        with open("doptree.txt", "w+") as f:
-            f.write(dump);
+#        with open("doptree.txt", "w+") as f:
+#            f.write(dump);
 #        print([x.keys() for x in dopTree.values()]);
-    def readDop2Leaf (self, host, node, leaf):
+        return dopTree;
+    def readDop2Leaf (self, host, node, deviceRoute, leaf):
         fields=[];
-        deviceRoute="000177753917"
-        deviceRoute="000187683192"
         response=self.sendHttpRequest(httpMethod="GET", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{node}/{leaf}");
         print(response)
         x=("DOP2/{node}/{leaf}");
@@ -315,7 +325,7 @@ class MieleCryptoProvider:
                             cursor=cursor+field.wireLength
                             print(field);
                             print(payload[cursor:])
-                            fields.append(str(field))
+                            fields.append([fieldType, field])
                         except Exception as e:
                             print(f"Error generating string field: " + str(e));
 #                            continue;

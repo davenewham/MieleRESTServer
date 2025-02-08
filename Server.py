@@ -83,6 +83,8 @@ class MieleEndpointConfig:
             self.device_route=list(j.keys())[0];
         else:
             raise Exception("Error autodetecting route");
+    def walkdop2tree (self):
+        return self.cryptoProvider.readDop2Recursive(self.host, self.device_route);
     def get_device_summary_raw(self):
         return self.send_get(f"Devices/{self.device_route}/State");
     def get_device_ident_raw (self):
@@ -157,6 +159,16 @@ class EndpointAPI(Resource):
             return {x: endpoints[x].serialize() for x in endpoints.keys() };
         else:
             return {endpoint: endpoints[endpoint].serialize() };
+
+class WalkDOP2TreeAPI(Resource):
+    def __init__ (self):
+        self.reqparse = reqparse.RequestParser();
+        self.reqparse.add_argument('endpoint', type=str, required=False, help='',location='json');
+        super(WalkDOP2TreeAPI,self).__init__()
+    def get (self, endpoint):
+        endpoint=endpoints[endpoint];
+        t=endpoint.walkdop2tree();
+        return t;
 class DeviceSummaryAPI(Resource):
     def __init__ (self):
         self.reqparse = reqparse.RequestParser();
@@ -201,6 +213,7 @@ if __name__ == '__main__':
     api = Api(app)
     api.add_resource(DevicesSummaryAPI, '/generate-summary')
     api.add_resource(DeviceSummaryAPI, '/generate-summary/<string:endpoint>')
+    api.add_resource(WalkDOP2TreeAPI, '/walkdop2tree/<string:endpoint>')
     api.add_resource(EndpointAPI, '/endpoints', '/endpoints/<string:endpoint>')
     api.add_resource(SetDeviceActionAPI, '/start/<string:endpoint>')
 
