@@ -120,8 +120,7 @@ class MieleEndpointConfig:
             pass;
         return j;
     def set_device_action (self):
-        command=json.dumps({"ProcessAction": 1,
-"ProgramID": 1});
+        command=json.dumps({"ProcessAction": 1});
         print(command)
         decrypted, response=self.cryptoProvider.sendHttpRequest(host=self.host, httpMethod="PUT", resourcePath=f"Devices/{self.device_route}/State", payload=command);
         print(decrypted);
