@@ -2,7 +2,7 @@
 Description=Miele REST Interface Server
 
 [Service]
-ExecStart=/usr/bin/python3 /usr/local/lib/MieleRESTServer/Server.py -b 192.168.6.248 -p 5001
+ExecStart=/usr/bin/python3 /usr/local/lib/MieleRESTServer/Server.py -b 127.0.0.1 -p 5001
 Restart=on-failure
 User=mieleserver
 
