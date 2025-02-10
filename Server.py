@@ -145,7 +145,7 @@ class SetDeviceActionAPI(Resource):
         self.reqparse = reqparse.RequestParser();
         self.reqparse.add_argument('endpoint', type=str, required=False, help='',location='json');
 
-    def get (self, endpoint):
+    def post (self, endpoint):
         endpoint=endpoints[endpoint];
         j=endpoint.set_device_action();
         return j;
