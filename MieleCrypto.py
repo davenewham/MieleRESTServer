@@ -75,6 +75,16 @@ class MieleProvisioningInfo:
     def to_pairing_json(self):
         return json.dumps(self.to_dict(), sort_keys=True);
 
+class MieleAuthHeader:
+    def __init__ (self, groupid, iv, signature):
+        self.groupid=groupid; #string
+        self.signature=signature; #bytearray
+        self.iv = iv;
+    def __str__ (self):
+        return 
+    @classmethod
+    def from_string (cls, auth_header):
+        
 class MieleCryptoProvider:
     def __init__ (self, provisioningInfo):
         self.provisioningInfo = provisioningInfo;
