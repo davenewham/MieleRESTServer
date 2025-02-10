@@ -22,6 +22,7 @@ from flask import Flask, jsonify, abort, make_response
 from flask_restful import Api, Resource, reqparse, fields, marshal
 from MieleCrypto import MieleProvisioningInfo, MieleCryptoProvider
 from MieleApi import *
+from MieleErrors import *
 
 from flask import render_template
 
@@ -166,7 +167,10 @@ class WalkDOP2TreeAPI(Resource):
         super(WalkDOP2TreeAPI,self).__init__()
     def get (self, endpoint):
         endpoint=endpoints[endpoint];
-        t=endpoint.walkdop2tree();
+        try:
+            t=endpoint.walkdop2tree();
+        except MieleRESTException as e:
+            return e.asdict(), 400;
         return t;
 class DeviceSummaryAPI(Resource):
     def __init__ (self):
@@ -193,8 +197,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', default=f"/etc/{PRODUCTNAME}.config", help="path to configuration file")
     parser.add_argument('-b', '--bind', default=f"127.0.0.1", help="IP address to bind to, default is local only")
     parser.add_argument('-p', '--port', default=5001, help="port to bind to, default is port 5001")
-    parser.add_argument('--webui', default=False, help="enable experimental web UI, default off")
-    parser.add_argument('--debug', default=False, help="run REST server in debug mode, default off")
+    parser.add_argument('--webui', action='store_true', help="enable experimental web UI, default off")
+    parser.add_argument('--debug', action='store_true', help="run REST server in debug mode, default off")
 
     cmdargs=parser.parse_args()
 
