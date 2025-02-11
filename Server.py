@@ -90,7 +90,6 @@ class MieleEndpointConfig:
         return self.send_get(f"Devices/{self.device_route}/State");
     def get_device_ident_raw (self):
         return self.send_get(f"Devices/{self.device_route}/Ident");
-
     def get_device_summary_annotated (self):
         response=self.get_device_summary_raw();
         j=json.loads(response)
@@ -144,6 +143,11 @@ class SetDeviceActionAPI(Resource):
     def __init__ (self):
         self.reqparse = reqparse.RequestParser();
         self.reqparse.add_argument('endpoint', type=str, required=False, help='',location='json');
+    def get (self, endpoint):
+        endpoint=endpoints[endpoint];
+        summary=json.loads(endpoint.get_device_summary_raw())
+        return {"DeviceReadyToStart" : summary["Status"]==0x04,
+                "DeviceRemoteStartCapable" : (15 in summary["RemoteEnable"])  }
 
     def post (self, endpoint):
         endpoint=endpoints[endpoint];
