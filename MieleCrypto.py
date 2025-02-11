@@ -207,12 +207,13 @@ class MieleCryptoProvider:
                     leafData=self.readDop2Leaf(host, x, deviceRoute, leafId);
                     print(f"read leaf {leafId} in node {x}:");
                     for fieldId, fieldData in enumerate(leafData):
+                        fieldId=fieldId+1 #DOP uses one-based index
                         flattened[f"{x}_{leafId}_{fieldId}"]=str(fieldData);
                         dopTree[x][leafId][fieldId]=str(fieldData);
 
                     print(f"successfully read {leafId} in node {x}")
                 except Exception as e:
-                    errorStr=f"Error reading node {x}, leaf {leafId} str(e)";
+                    errorStr=f"Error reading node {x}, leaf {leafId}, error {str(e)}";
                     dopTree[x][leafId]=errorStr;
                     flattened[f"{x}_{leafId}"]=errorStr;
         print(dopTree);
