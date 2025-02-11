@@ -94,23 +94,43 @@ You should see a JSON file that shows information from all configured devices.
 If you want to use Home Assistant to query and display the device status, paste
 the configuration fragment into your home assistant config.
 
+=== USING REMOTE START ===
+
+Some Miele devices can be started remotely. They will only start remotely
+if they are fully programmed. The server is not yet capable of programming
+the device, but it can start the device if the programming is done locally.
+
+Send a GET request to the /start/<device name> handle. This will show
+whether the device reports remote start capability, and whether it is
+currently programmed so that it can be remote-started.
+
+The easiest way to program it is to set up a timer on the local control panel.
+
+Once the timer is running, send a POST request to /start/<device name>.
+Your device should start immediately, cutting the timer short.
+
 === TODO ===
 
 Some Miele devices expose an internal binary protocol under the endpoint "DOP2".
 Understanding this protocol is an ongoing reverse engineering effort.
 
 There is some code that can make DOP2 requests and parse responses from the
-Miele device, but so far, no useful information can be retrieved yet. 
-
-It is possible to start some Miele devices remotely by sending {"ProcessAction"
-: "1" } through a PUT request to the ProcessAction endpoint. I have not yet
-explored under which conditions this is possible. A functional, but practically
-useless, way of triggering this is to set up a timer on the local control panel,
-and then sending ProcessAction=1 to cut the timer short and start the device
-immediately. It is possible that the device can need to be programmed through
-the DOP2 protocol to allow fully remote configuration and start.
+Miele device, but so far, not all information can be retrieved. 
 
 Patches/pull requests welcome.
+
+=== COMPATIBILITY  ===
+
+Users have reported the following devices to be compatible:
+
+Device Model | Device Type | Basic Info | Remote Start | DOP2
+______________________________________________________________
+G7364	     | Dishwasher  |      X     |      X       |  ?
+H7164        | Oven        |      X     |      ?       |  ?
+TWD360       | Dryer       |      X     |      ?       |  No
+WXF660 (W1)  | Washer      |      X     |      X       |  X
+
+Additional reports appreciated.
 
 === FURTHER READING ===
 
@@ -122,6 +142,8 @@ https://community.symcon.de/t/miele-home-xkm-3100w-protokollanalyse/43633/8
 (Note: The test vectors provided with the Java programs linked in this forums
 are wrong. The programs themselves do not run on current versions of Java.)
 
+https://community.home-assistant.io/t/mielerestserver-miele-home-without-cloud-possible/840093/20
+Notes from users
 
 === LICENSE AND DISCLAIMER ===
 
@@ -130,3 +152,4 @@ This program is licensed under GPLv3.
 This program is solely based on independent reverse engineering and is not in any way
 authorized, warranted or tested by Miele. Its use may void your warranty, or destroy
 your Miele machines.
+
