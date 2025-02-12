@@ -27,7 +27,7 @@ import sys
 import json
 import pprint
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import MieleDop2
+from MieleDop2 import MieleAttributeParser 
 
 
 import requests
@@ -228,6 +228,8 @@ class MieleCryptoProvider:
         parser=MieleAttributeParser();
         fields=[];
         response=self.sendHttpRequest(httpMethod="GET", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{node}/{leaf}");
+        if (response):
+            response=response[0]
         print(response)
         x=("DOP2/{node}/{leaf}");
         if (response):
