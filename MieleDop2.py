@@ -93,7 +93,33 @@ class MieleStruct(MieleAttributeDecoder):
     def __init__(self):
         super().__init__(0, "struct");
     def decode (self, data):
-        return MieleAttribute(8, "struct", "test");
+        hex=binascii.hexlify(data, " ");
+        decoder=MieleAttributeParser();
+        fields=[];
+        fieldLength=0;
+        headerLength=3; 
+        [byte0, numberOfFields,byte2]=data[0:3];
+        data=data[3:]
+        while True:
+            print(f"decoding struct field {data[0]}");
+            fieldId=data[0];
+            dataType=data[1];
+            try:
+                field=decoder.parseField(dataType, data[2:])
+            except Exception as e:
+                return MieleAttribute(headerLength + fieldLength + 1, f"incomplete struct, error {e}, hex {hex}, last data type {data[1]}, last field id {fieldId}", fields);
+            currentFieldLength = field.wireLength + 2;
+            fieldLength=fieldLength + currentFieldLength;
+            fields.append(field);
+            if (len(fields) == numberOfFields):
+                break;
+            data=data[currentFieldLength:];
+            if (data[0]==0x00): #padding
+                data=data[1:];
+                fieldLength=fieldLength+1; 
+
+        totalWireLength = fieldLength + 3;
+        return MieleAttribute(totalWireLength, "struct", fields);
 class Dop2Payload:
     def __init__ (unit, node, fields):
         self.unit=unit;
@@ -121,8 +147,11 @@ class MieleAttributeParser():
             16: MieleStruct (),
             17: MieleArray (MieleBool()),
             18: MieleString(), #this is really an U8[]
+            20: MieleArray (MieleInteger(1, MieleIntegerFormat.E)),
             21: MieleArray (MieleInteger(2, MieleIntegerFormat.Unsigned)),
+            22: MieleArray (MieleInteger(2, MieleIntegerFormat.Signed)),
             25: MieleArray (MieleInteger(4, MieleIntegerFormat.Signed)),
+            27: MieleArray (MieleInteger(8, MieleIntegerFormat.Unsigned)),
             32: MieleString(),
             33: MieleArray (MieleStruct()),
             } 
@@ -130,6 +159,11 @@ class MieleAttributeParser():
         self.registerDecoders();
     def __str__(self):
         return f"MieleAttributeParser, decoders={[str(x) for x in self.decoders.values()]}";
+    def parseField (self, fieldType, data):
+        decoder=self.decoders[fieldType];
+        fieldValue = decoder.decode (data);
+        return fieldValue;
+
     def parseBytes (self, response):
         hex=binascii.hexlify(response, " ");
         payloadLength=response[1] + (response[0] << 8);
