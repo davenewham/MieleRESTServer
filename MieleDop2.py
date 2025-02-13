@@ -7,6 +7,8 @@ class MieleIntegerFormat(str, Enum):
     E="E"
 
 class MieleAttribute:
+    def to_dict(self):
+        return {'wireLength' : self.wireLength, 'typeName': self.typeName, 'value':self.value}
     def __init__ (self, wireLength, typeName, value):
         self.wireLength = wireLength;
         self.typeName = typeName;
@@ -24,7 +26,6 @@ class MieleAttributeDecoder:
         self.typeName=typeName;
     def __str__ (self):
         return self.typeName;
-
 class MieleFixedLengthAttributeDecoder (MieleAttributeDecoder):
     def __init__ (self, byteLength, typeName):
         super().__init__(byteLength, typeName);
@@ -40,6 +41,32 @@ class MieleVariableLengthAttributeDecoder (MieleAttributeDecoder):
     def decode (self, remainingPayload):
         [wireLength, values]=self.variableLengthDecode(remainingPayload);
         return MieleAttribute(wireLength, self.typeName, values);
+
+class MieleAStruct(MieleVariableLengthAttributeDecoder):
+    def __init__ (self):
+        super().__init__("A_struct[]")
+    def variableLengthDecode (self, remainingPayload):
+        numberOfFields=(remainingPayload[0]<<8) + remainingPayload[1]; # 2 byte length field
+        remainingPayload=remainingPayload[2:];
+        if (numberOfFields==0):
+            raise Exception("Cannot have empty struct");
+        fields=[];
+        totalWireLength=5;
+        while (len(fields) < numberOfFields):
+            id=(remainingPayload[0]<<8) + remainingPayload[1]; # 2 byte length field
+            currentNumber=(remainingPayload[2]<<8) + remainingPayload[3]; # 2 byte length field
+            dataType=remainingPayload[4];
+#            if (dataType != 0x0a):
+#                raise Exception(f"{dataType} found, should be 0x0a for struct[]");
+            remainingPayload=remainingPayload[5:]
+            currentStruct=MieleAttributeParser().parseBytes(remainingPayload);
+            #totalWireLength=sum([x.wireLength for x in currentStruct]);
+#            remainingPayload=remainingPayload[currentStruct.wireLength:];
+            #totalWireLength=totalWireLength+currentStruct.wireLength ;
+            fields.append(currentStruct);
+            break;
+        return [totalWireLength, fields]
+
 
 class MieleBool(MieleFixedLengthAttributeDecoder):
     def __init__ (self):
@@ -72,7 +99,8 @@ class MieleString (MieleVariableLengthAttributeDecoder):
         headerLength=2;
         stringLength=(remainingPayload[0]<<8) + remainingPayload[1]; # 2 byte length field
         wireLength=headerLength+stringLength;
-        return [wireLength, remainingPayload[headerLength:wireLength].decode(encoding="utf-8", errors='ignore')]
+#        return [wireLength, remainingPayload[headerLength:wireLength].decode(encoding="utf-8", errors='ignore')]
+        return [wireLength, bytes(remainingPayload[headerLength:wireLength]) ]
 class MieleArray (MieleVariableLengthAttributeDecoder):
     def __init__ (self, elementDecoder):
         self.elementDecoder=elementDecoder;
@@ -82,11 +110,14 @@ class MieleArray (MieleVariableLengthAttributeDecoder):
         elements=[];
         elementWireLength = 0;
         while (len(elements) < numberElements):
-            newElement=self.elementDecoder.decode(data[2:]);
+            try:
+                newElement=self.elementDecoder.decode(data[2:]);
+            except Exception as e:
+                raise Exception(f"Exception when decoding array element {len(elements)+1} of {numberElements}, elements so far {[str(x) for x in elements]}: {e}, elementWireLength={elementWireLength}, data={binascii.hexlify(data, '-')}")
             data=data[2+newElement.wireLength:];
-            elementWireLength = newElement.wireLength;
+            elementWireLength = elementWireLength + newElement.wireLength;
             elements.append(newElement);
-        totalWireLength = elementWireLength * len(elements) + 2; #1 header + elements + 0x00 trailing byte?
+        totalWireLength = elementWireLength + 2; #1 header + elements + 0x00 trailing byte?
         return MieleAttribute(totalWireLength, self.typeName, elements);
 
 class MieleStruct(MieleAttributeDecoder):
@@ -99,15 +130,24 @@ class MieleStruct(MieleAttributeDecoder):
         fieldLength=0;
         headerLength=3; 
         [byte0, numberOfFields,byte2]=data[0:3];
+        if (numberOfFields == 0 or numberOfFields > 160):
+            raise Exception(f"Empty or implausibly large struct, {numberOfFields} number of fields");
         data=data[3:]
         while True:
             print(f"decoding struct field {data[0]}");
             fieldId=data[0];
             dataType=data[1];
+            if (fieldId != len(fields) + 1):
+                if (dataType==len(fields)+1): #mysterious padding sometimes shows up
+                    data=data[1:];
+                    fieldLength=fieldLength+1;
+                    continue;
+                raise Exception(f"Struct Fields not sequentially numbered, expecting {len(fields)+1} but got {fieldId}")
             try:
                 field=decoder.parseField(dataType, data[2:])
             except Exception as e:
-                return MieleAttribute(headerLength + fieldLength + 1, f"incomplete struct, error {e}, hex {hex}, last data type {data[1]}, last field id {fieldId}", fields);
+                raise Exception(f"Struct decoding exception {e}, field id {fieldId}, last data type={dataType}, fields so far {[str(x) for x in fields]}");
+                return MieleAttribute(headerLength + fieldLength + 1, f"incomplete struct, error {e}, {len(data)} bytes in, hex {hex}, last data type {data[1]}, last field id {fieldId}", fields);
             currentFieldLength = field.wireLength + 2;
             fieldLength=fieldLength + currentFieldLength;
             fields.append(field);
@@ -118,7 +158,7 @@ class MieleStruct(MieleAttributeDecoder):
                 data=data[1:];
                 fieldLength=fieldLength+1; 
 
-        totalWireLength = fieldLength + 3;
+        totalWireLength = fieldLength + 3 ;
         return MieleAttribute(totalWireLength, "struct", fields);
 class Dop2Payload:
     def __init__ (unit, node, fields):
@@ -147,13 +187,14 @@ class MieleAttributeParser():
             16: MieleStruct (),
             17: MieleArray (MieleBool()),
             18: MieleString(), #this is really an U8[]
+#            18: MieleArray (MieleInteger(1, MieleIntegerFormat.Unsigned)),
             20: MieleArray (MieleInteger(1, MieleIntegerFormat.E)),
             21: MieleArray (MieleInteger(2, MieleIntegerFormat.Unsigned)),
             22: MieleArray (MieleInteger(2, MieleIntegerFormat.Signed)),
             25: MieleArray (MieleInteger(4, MieleIntegerFormat.Signed)),
             27: MieleArray (MieleInteger(8, MieleIntegerFormat.Unsigned)),
             32: MieleString(),
-            33: MieleArray (MieleStruct()),
+            33: MieleAStruct(),
             } 
     def __init__ (self):
         self.registerDecoders();
@@ -193,7 +234,10 @@ class MieleAttributeParser():
                         raise Exception(f"incorrect field numbering {hex}, expected total fields {numberOfFields} but field number {len(fields)++1} is labelled as field number {remainingPayload[0]}")
                 fieldType = remainingPayload[1];
                 decoder=self.decoders[fieldType];
-                fieldValue = decoder.decode (remainingPayload[2:]);
+                try:
+                    fieldValue = decoder.decode (remainingPayload[2:]);
+                except Exception as e:
+                    raise Exception(f"Error while decodign with decoder {decoder}: {e}")
                 if (fieldValue.wireLength==0):
                     raise Exception("zero-length field not possible");
                 fields.append(fieldValue);
@@ -202,6 +246,6 @@ class MieleAttributeParser():
                 remainingPayload=remainingPayload[3+fieldValue.wireLength:];
         except Exception as e:
             print("error during parsing, returning incomplete parse result");
-            fields.append(f"short stop {e}, {numberOfFields-len(fields)} left in header (numbering correction={fieldNumberingCorrection}");
+            fields.append(f"short stop, inner exception {e}, hex={hex}, {numberOfFields-len(fields)} left in header (numbering correction={fieldNumberingCorrection}, padding bytes expected {padding_bytes_expected}, fields expected {numberOfFields}, remaining payload {binascii.hexlify(remainingPayload)}");
         return fields;
             

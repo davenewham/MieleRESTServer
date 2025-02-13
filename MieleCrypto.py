@@ -28,7 +28,7 @@ import json
 import pprint
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from MieleDop2 import MieleAttributeParser 
-
+from MieleDop2Structures import *
 
 import requests
 import secrets
@@ -210,9 +210,18 @@ class MieleCryptoProvider:
                     for fieldId, fieldData in enumerate(leafData):
                         fieldId=fieldId+1 #DOP uses one-based index
                         flattened[f"{x}_{leafId}_{fieldId}"]=str(fieldData);
-                        dopTree[x][leafId][fieldId]=str(fieldData);
-
+                        dopTree[x][leafId][fieldId]=fieldData;
+#                        dopTree[x][leafId][fieldId]=fieldData;
                     print(f"successfully read {leafId} in node {x}")
+                    for annotator in DOP2Annotators:
+                        if (annotator.getLeaf()==[int(x), int(leafId)]):
+#                           raise Exception(f"found annotator for {leafId}, {fieldId}");
+                           annotatorInstance=annotator(dopTree[x][leafId]);
+                           annotatorInstance.readFields();
+                           print(annotatorInstance);
+                           dopTree[x][str(leafId)+"_annotated"]=str(annotatorInstance)
+                    for key, value in dopTree[x][leafId].items():
+                        dopTree[x][leafId][key]=str(value);
                 except Exception as e:
                     errorStr=f"Error reading node {x}, leaf {leafId}, error {str(e)}";
                     dopTree[x][leafId]=errorStr;
