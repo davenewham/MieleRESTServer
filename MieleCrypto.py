@@ -219,7 +219,8 @@ class MieleCryptoProvider:
                            annotatorInstance=annotator(dopTree[x][leafId]);
                            annotatorInstance.readFields();
                            print(annotatorInstance);
-                           dopTree[x][str(leafId)+"_annotated"]=str(annotatorInstance)
+#                           dopTree[x][str(leafId)+"_annotated"]=str(annotatorInstance)
+                           dopTree[x][str(type(annotatorInstance))]=annotatorInstance
                     for key, value in dopTree[x][leafId].items():
                         dopTree[x][leafId][key]=str(value);
                 except Exception as e:
