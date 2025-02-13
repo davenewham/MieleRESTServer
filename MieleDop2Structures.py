@@ -21,7 +21,14 @@ class DOP2Annotator(dict):
         if (len(tup)!=4):
             raise Exception("not an IP");
         return f"{tup[0]}.{tup[1]}.{tup[2]}.{tup[3]}"
-
+class DOP2SuperVisionListItem (DOP2Annotator): #SV_ListItem
+    def getLeaf():
+        return [14, 1571]
+    def readFields (self):
+        self["deviceId"]=self.getAtIndex(1);
+        self["deviceIdEnum"]=self.getAtIndex(2)
+        self["deviceName"]=self.getStringAtIndex(3);
+        self["longAddress"]=self.getStringAtIndex(17);
 class DOP2DeviceState (DOP2Annotator):
     def getLeaf():
         return [2, 256];
@@ -92,6 +99,14 @@ class DOP2SensorData (DOP2Annotator): #CDV_SensorData
         self["steamUnitTemperature"]=self.getValueWithInterpretationAtIndex(15);
         self["sensCoinerPayment"]=self.getValueWithInterpretationAtIndex(16);
 
+class DOP2XKMConfigSSIDList (DOP2Annotator):
+    def getLeaf ():
+        return [14,110]
+    def readFields(self):
+        self["ssid"]=self.getStringAtIndex(1);
+        self["wlanSecurity"]=self.getAtIndex(2);
+        self["rssi"]=self.getAtIndex(3);
+        self["wifiChannel"]=self.getAtIndex(4);
 class DOP2SoftwareBuild (DOP2Annotator): #CDV_SoftwareBuild
     def getLeaf():
         return [2, 6194];
@@ -134,6 +149,7 @@ class DOP2XKMConfigIP (DOP2Annotator):
         self["wifiChannel"]=self.getAtIndex(11);
 
 DOP2Annotators = [
+DOP2SuperVisionListItem,
 DOP2ActuatorData,
 DOP2SensorData,
 DOP2ProcessData,
@@ -141,4 +157,5 @@ DOP2DeviceState,
 DOP2SoftwareBuild,
 DOP2XKMState,
 DOP2XKMIdentLabel,
+DOP2XKMConfigSSIDList,
 DOP2XKMConfigIP ]
