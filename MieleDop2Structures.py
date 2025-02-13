@@ -14,6 +14,8 @@ class DOP2Annotator(dict):
         return self.tree[i].value;
     def getBoolAtIndex( self, i):
         return self.tree[i].value;
+    def getEnumAtIndex (self, i):
+        return self.tree[i].value;
     def getValueWithInterpretationAtIndex (self, i):
         [requestMask, value, valueInterpretation]=self.getStructAtIndex(i);
         return value.value;
@@ -23,6 +25,18 @@ class DOP2Annotator(dict):
         if (len(tup)!=4):
             raise Exception("not an IP");
         return f"{tup[0]}.{tup[1]}.{tup[2]}.{tup[3]}"
+
+class DOP2SuperVisionListConfig (DOP2Annotator): #SV_ListConfig
+    def getLeaf():
+        return [14, 1570]
+    def readFields(self):
+        self["isSuperVisionActive"]=self.getBoolAtIndex(1);
+        self["isSuperVisionOnErrorOnly"]=self.getBoolAtIndex(2);
+        self["isTimeMaster"]=self.getBoolAtIndex(3);
+        self["listSize"]=self.getAtIndex(4);
+        self["deviceIdSort"]=self.getAtIndex(5);
+        self["deviceIdSortSv"]=self.getAtIndex(6);
+        
 class DOP2SuperVisionListItem (DOP2Annotator): #SV_ListItem
     def getLeaf():
         return [14, 1571]
@@ -34,8 +48,8 @@ class DOP2SuperVisionListItem (DOP2Annotator): #SV_ListItem
         self["displaySetting"]=self.getBoolAtIndex (5);
         self["signalSetting"]=self.getBoolAtIndex (6);
         self["superVisionActivate"]=self.getBoolAtIndex (7);
-        self["superVisionDisplayScreenEnum"]=self.getStringAtIndex (8);
-        self["superVisionDisplayTextEnum"]=self.getStringAtIndex (9);
+        self["superVisionDisplayScreenEnum"]=self.getEnumAtIndex (8);
+        self["superVisionDisplayTextEnum"]=self.getEnumAtIndex (9);
         self["longAddress"]=self.getStringAtIndex(17);
         self["programId"]=self.getAtIndex(24);
 class DOP2DeviceState (DOP2Annotator):
@@ -159,6 +173,7 @@ class DOP2XKMConfigIP (DOP2Annotator):
 
 DOP2Annotators = [
 DOP2SuperVisionListItem,
+DOP2SuperVisionListConfig,
 DOP2ActuatorData,
 DOP2SensorData,
 DOP2ProcessData,
