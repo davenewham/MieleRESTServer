@@ -12,6 +12,8 @@ class DOP2Annotator(dict):
         return self.getStringAtIndex(i).replace('\x07', "*");
     def getStructAtIndex (self, i):
         return self.tree[i].value;
+    def getBoolAtIndex( self, i):
+        return self.tree[i].value;
     def getValueWithInterpretationAtIndex (self, i):
         [requestMask, value, valueInterpretation]=self.getStructAtIndex(i);
         return value.value;
@@ -28,7 +30,14 @@ class DOP2SuperVisionListItem (DOP2Annotator): #SV_ListItem
         self["deviceId"]=self.getAtIndex(1);
         self["deviceIdEnum"]=self.getAtIndex(2)
         self["deviceName"]=self.getStringAtIndex(3);
+        self["connectionState"]=self.getAtIndex(4);
+        self["displaySetting"]=self.getBoolAtIndex (5);
+        self["signalSetting"]=self.getBoolAtIndex (6);
+        self["superVisionActivate"]=self.getBoolAtIndex (7);
+        self["superVisionDisplayScreenEnum"]=self.getStringAtIndex (8);
+        self["superVisionDisplayTextEnum"]=self.getStringAtIndex (9);
         self["longAddress"]=self.getStringAtIndex(17);
+        self["programId"]=self.getAtIndex(24);
 class DOP2DeviceState (DOP2Annotator):
     def getLeaf():
         return [2, 256];
