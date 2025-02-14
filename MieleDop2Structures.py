@@ -1,3 +1,5 @@
+from binascii import hexlify
+
 class DOP2Annotator(dict):
     def __init__ (self, tree):
         self.tree=tree;
@@ -19,12 +21,94 @@ class DOP2Annotator(dict):
     def getValueWithInterpretationAtIndex (self, i):
         [requestMask, value, valueInterpretation]=self.getStructAtIndex(i);
         return value.value;
+    def getBytesAtIndex (self, i):
+        return str(hexlify(self.tree[i].value, " "));
     def getIpAtIndex(self, i):
 #         return str(self.tree[i])
         tup=list(self.tree[i].value)
         if (len(tup)!=4):
             raise Exception("not an IP");
         return f"{tup[0]}.{tup[1]}.{tup[2]}.{tup[3]}"
+#actuatorstate is 20 bools, 0x14 0x00 0x00...
+class DOP2LastUpdateInfo (DOP2Annotator):
+    def getLeaf():
+        return [15, 199];
+    def readFields(self):
+        self["filename"]=self.getStringAtIndex(1);
+
+class DOP2UpdateControl (DOP2Annotator): #FTUpdateControl
+    def getLeaf():
+        return [15, 170];
+    def readFields(self):
+        self["updateState"]=self.getEnumAtIndex(1);
+        self["filename"]=self.getStringAtIndex(2);
+        self["flashAccessible"]=self.getAtIndex(3);
+        self["progress"]=self.getAtIndex(4);
+
+class DOP2FileInfo (DOP2Annotator): #FTFileInfo
+    def getLeaf():
+        return [15, 1588];
+    def readFields(self):
+        self["fileName"]=self.getStringAtIndex(1);
+        self["sha256"]=self.getBytesAtIndex(2);
+        self["currentSize"]=self.getAtIndex(3);
+        self["maxSize"]=self.getAtIndex(4);
+        self["crc32"]=self.getAtIndex(5);
+
+class DOP2RSAPublicKey (DOP2Annotator):
+    def getLeaf():
+        return [15, 287];
+    def readFields(self):
+        self["rsaPublicKey"]=self.getBytesAtIndex(1);
+
+class DOP2DeviceCombinedState (DOP2Annotator): #TBD -- deviceCombiState
+    def getLeaf():
+        return [2,1586];
+    def readFields(self):
+        self["applianceState"]=self.getAtIndex(1);
+        self["operationState"]=self.getAtIndex(2);
+        self["processState"]=self.getAtIndex(3);
+
+class DOP2CS_DeviceContext (DOP2Annotator): #TBD
+    def getLeaf():
+        return [999,999];
+
+class DOP2DeviceContext (DOP2Annotator): #GLOBAL_DeviceContext -- not sure yet
+    def getLeaf():
+        return [2,1585];
+    def readFields(self):
+        self["deviceCombinedState"]=self.getAtIndex(1);
+        self["progAttributes"]=self.getAtIndex(2);
+        self["deviceAttributes"]=self.getAtIndex(3);
+        self["sessionOwnerEnum"]=self.getAtIndex(10);
+        self["mobileStartActive"]=self.getBoolAtIndex(11);
+#        self["requestTimeSync"]=self.getBoolAtIndex(13);
+class DOP2OperationCycleCounter (DOP2Annotator): # CS_OperationCycleCounter (this shares a signature with "OperationRuntimeCounter)
+    def getLeaf():
+        return [2, 138]
+    def readFields(self):
+        self["counterId"]=self.getAtIndex(1);
+        self["counterValue"]=self.getAtIndex(2);
+class DOP2HoursOfOperation (DOP2Annotator): #CS_HoursOfOperation
+    def getLeaf():
+        return [2, 119];
+    def readFields(self):
+        prefix="hoursOfOperation";
+        for count, x in enumerate(["", "BeforeReplacement", "SinceLastMaintenance", "Mode1", "Mode2"],start=1):
+            self[prefix+x]=self.getAtIndex(count);
+class DOP2PartName (DOP2Annotator): #CS_Barcode
+    def getLeaf():
+        return [2, 173];
+    def readFields(self):
+        self["partName"]=self.getStringAtIndex(1);
+        self["code"]=self.getStringAtIndex(2);
+
+class DOP2DateOfTest (DOP2Annotator): #CS_DateOfTest
+    def getLeaf():
+        return [2, 174];
+    def readFields(self):
+        self["partName"]=self.getStringAtIndex(1);
+        self["dateOfTest"]=self.getStringAtIndex(2);
 
 class DOP2SuperVisionListConfig (DOP2Annotator): #SV_ListConfig
     def getLeaf():
@@ -172,6 +256,12 @@ class DOP2XKMConfigIP (DOP2Annotator):
         self["wifiChannel"]=self.getAtIndex(11);
 
 DOP2Annotators = [
+DOP2LastUpdateInfo,
+DOP2UpdateControl,
+DOP2FileInfo,
+DOP2RSAPublicKey,
+DOP2PartName,
+DOP2DateOfTest,
 DOP2SuperVisionListItem,
 DOP2SuperVisionListConfig,
 DOP2ActuatorData,
