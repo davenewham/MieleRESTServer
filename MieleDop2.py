@@ -20,6 +20,9 @@ class MieleAttribute:
             valueStr=str(self.value);
         return f"{self.typeName}={str(valueStr)}";
 
+class EmptyMieleAttribute (MieleAttribute):
+    def __init__(self):
+        super().__init__(0, "empty", "");
 class MieleAttributeDecoder:
     def __init__ (self, byteLength, typeName):
         self.byteLength=byteLength;
@@ -137,12 +140,12 @@ class MieleStruct(MieleAttributeDecoder):
             print(f"decoding struct field {data[0]}");
             fieldId=data[0];
             dataType=data[1];
-            if (fieldId != len(fields) + 1):
-                if (dataType==len(fields)+1): #mysterious padding sometimes shows up
-                    data=data[1:];
-                    fieldLength=fieldLength+1;
-                    continue;
-                raise Exception(f"Struct Fields not sequentially numbered, expecting {len(fields)+1} but got {fieldId}")
+#            if (fieldId != len(fields) + 1): ##removed this -- fields are NOT necessarily sequential
+#                if (dataType==len(fields)+1): #mysterious padding sometimes shows up
+#                    data=data[1:];
+ #                   fieldLength=fieldLength+1;
+ #                   continue;
+ #               raise Exception(f"Struct Fields not sequentially numbered, expecting {len(fields)+1} but got {fieldId}")
             try:
                 field=decoder.parseField(dataType, data[2:])
             except Exception as e:
@@ -191,6 +194,7 @@ class MieleAttributeParser():
             20: MieleArray (MieleInteger(1, MieleIntegerFormat.E)),
             21: MieleArray (MieleInteger(2, MieleIntegerFormat.Unsigned)),
             22: MieleArray (MieleInteger(2, MieleIntegerFormat.Signed)),
+            23: MieleArray (MieleInteger(2, MieleIntegerFormat.E)),
             25: MieleArray (MieleInteger(4, MieleIntegerFormat.Signed)),
             27: MieleArray (MieleInteger(8, MieleIntegerFormat.Unsigned)),
             32: MieleString(),
@@ -218,7 +222,8 @@ class MieleAttributeParser():
 
         if (len(payload)==0):
             print("empty response, returning");
-            return Dop2Payload (unit, node, []);
+            return [];
+#            return Dop2Payload (unitId, attributeId, []);
         
         numberOfFields=(payload[3]) + (payload[4] << 8);
 
@@ -228,10 +233,15 @@ class MieleAttributeParser():
         try:
             while (True):
                 if (len(fields) + 1 != remainingPayload[0] - fieldNumberingCorrection): #field index does not match
-                    if (fieldNumberingCorrection==0 and remainingPayload[0]==len(fields)+2):
-                        fieldNumberingCorrection=1;
-                    else:
-                        raise Exception(f"incorrect field numbering {hex}, expected total fields {numberOfFields} but field number {len(fields)++1} is labelled as field number {remainingPayload[0]}")
+                     if (len(fields)+1 > remainingPayload[0]):
+                         raise Exception("field index regressed");
+                     else:
+                         while ( (len(fields)+1) < remainingPayload[0]):
+                             fields.append(EmptyMieleAttribute());
+#                    if (fieldNumberingCorrection==0 and remainingPayload[0]==len(fields)+2):
+#                        fieldNumberingCorrection=1;
+#                    else:
+#                        raise Exception(f"incorrect field numbering {hex}, expected total fields {numberOfFields} but field number {len(fields)++1} is labelled as field number {remainingPayload[0]}")
                 fieldType = remainingPayload[1];
                 decoder=self.decoders[fieldType];
                 try:

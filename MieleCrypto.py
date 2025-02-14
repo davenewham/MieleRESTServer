@@ -216,11 +216,13 @@ class MieleCryptoProvider:
                     for annotator in DOP2Annotators:
                         if (annotator.getLeaf()==[int(x), int(leafId)]):
 #                           raise Exception(f"found annotator for {leafId}, {fieldId}");
-                           annotatorInstance=annotator(dopTree[x][leafId]);
-                           annotatorInstance.readFields();
-                           print(annotatorInstance);
+                           try:
+                               annotatorInstance=annotator(dopTree[x][leafId]);
+                               annotatorInstance.readFields();
+                               dopTree[x][str(type(annotatorInstance))]=annotatorInstance
+                           except:
+                               pass
 #                           dopTree[x][str(leafId)+"_annotated"]=str(annotatorInstance)
-                           dopTree[x][str(type(annotatorInstance))]=annotatorInstance
                     for key, value in dopTree[x][leafId].items():
                         dopTree[x][leafId][key]=str(value);
                 except Exception as e:
