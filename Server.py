@@ -138,6 +138,15 @@ class MieleEndpointConfig:
         return json.dumps( {"host":self.host, "groupid": self.provisioningInfo.groupid, "route":self.device_route, "last_comm": self.last_comm.__str__()} )
     def last_comm (self):
         self.last_comm.reset();
+class CommandPassthroughAPI(Resource):
+    def __init__ (self):
+        self.reqparse = reqparse.RequestParser();
+        self.reqparse.add_argument('endpoint', type=str, required=True, help='',location='json');
+        self.reqparse.add_argument('command', type=str, required=True, help='',location='json');
+    def get (self, endpoint, command):
+        endpoint=endpoints[endpoint];
+        command=command.replace("_","/");
+        return json.loads(endpoint.send_get(command));
 
 class SetDeviceActionAPI(Resource):
     def __init__ (self):
@@ -223,6 +232,7 @@ if __name__ == '__main__':
     api.add_resource(WalkDOP2TreeAPI, '/walkdop2tree/<string:endpoint>')
     api.add_resource(EndpointAPI, '/endpoints', '/endpoints/<string:endpoint>')
     api.add_resource(SetDeviceActionAPI, '/start/<string:endpoint>')
+    api.add_resource(CommandPassthroughAPI, '/command/<string:endpoint>/<string:command>')
 
     if (cmdargs.webui):
         @app.route("/webui", strict_slashes=False)
