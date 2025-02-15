@@ -256,6 +256,6 @@ class MieleAttributeParser():
                 remainingPayload=remainingPayload[3+fieldValue.wireLength:];
         except Exception as e:
             print("error during parsing, returning incomplete parse result");
-            fields.append(f"short stop, inner exception {e}, hex={hex}, {numberOfFields-len(fields)} left in header (numbering correction={fieldNumberingCorrection}, padding bytes expected {padding_bytes_expected}, fields expected {numberOfFields}, remaining payload {binascii.hexlify(remainingPayload)}");
+            fields.append(f"short stop, inner exception {e}, hex={hex} bytes={len(hex)}, {numberOfFields-len(fields)} left in header (numbering correction={fieldNumberingCorrection}, padding bytes expected {padding_bytes_expected}, fields expected {numberOfFields}, remaining payload {binascii.hexlify(remainingPayload)}");
         return fields;
             

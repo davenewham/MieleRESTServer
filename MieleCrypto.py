@@ -190,22 +190,29 @@ class MieleCryptoProvider:
             print(f"Error obtaining DOP2 root node, perhaps device is not exposing DOP2 endpoint.");
             raise MieleRESTException("DOP2 Root Node not found", host);
 #        j=json.loads(rootNode);
+        dopTreeBinary={}
         dopTree={};
+        dopTreeAnnotated={};
+
         flattened={}
         for x in rootNode:  # visit each child node
             print(f"Exploring child node {x}");
             dopTree[x]={};
+            dopTreeBinary[x]={};
             try:
                 leaves=self.readDop2Node(host, deviceRoute, node=x); #read all leaves in child node
             except Exception as e:
                 dopTree[x]=f"Error reading child node {x}, exception {e}";
                 continue;
             print(f"Leaves {leaves} for node {x}");
+            dopTreeAnnotated[x]={};
+
             for leafId in set(leaves):
                 print(f"reading leaf {leafId} in node {x}");
                 try:
                     dopTree[x][leafId]={};
-                    leafData=self.readDop2Leaf(host, x, deviceRoute, leafId);
+                    [leafData, leafBytes]=self.readDop2Leaf(host, x, deviceRoute, leafId);
+                    dopTreeBinary[x][leafId]=str(binascii.hexlify(leafBytes));
                     print(f"read leaf {leafId} in node {x}:");
                     for fieldId, fieldData in enumerate(leafData):
                         fieldId=fieldId+1 #DOP uses one-based index
@@ -219,7 +226,7 @@ class MieleCryptoProvider:
                            try:
                                annotatorInstance=annotator(dopTree[x][leafId]);
                                annotatorInstance.readFields();
-                               dopTree[x][str(type(annotatorInstance))]=annotatorInstance
+                               dopTreeAnnotated[x][str(type(annotatorInstance))]=annotatorInstance
                            except:
                                pass
 #                           dopTree[x][str(leafId)+"_annotated"]=str(annotatorInstance)
@@ -235,7 +242,7 @@ class MieleCryptoProvider:
 #        with open("doptree.txt", "w+") as f:
 #            f.write(dump);
 #        print([x.keys() for x in dopTree.values()]);
-        return dopTree;
+        return {"dopTreeAnnotated": dopTreeAnnotated, "dopTreeDecoded": dopTree, "dopTreeBinary":dopTreeBinary};
     def readDop2Leaf (self, host, node, deviceRoute, leaf):
         parser=MieleAttributeParser();
         fields=[];
@@ -245,7 +252,7 @@ class MieleCryptoProvider:
         print(response)
         x=("DOP2/{node}/{leaf}");
         if (response):
-            return parser.parseBytes(response);
+            return [parser.parseBytes(response), response];
 
 #         if (response):
 #             response=response[0]

@@ -23,7 +23,7 @@ from flask_restful import Api, Resource, reqparse, fields, marshal
 from MieleCrypto import MieleProvisioningInfo, MieleCryptoProvider
 from MieleApi import *
 from MieleErrors import *
-
+from MieleDop2 import *
 from flask import render_template
 
 import json
@@ -31,6 +31,8 @@ import time
 import yaml
 import sys
 import argparse
+
+import binascii
 
 PRODUCTNAME="MieleRESTServer"
 endpoints={};
@@ -146,7 +148,13 @@ class CommandPassthroughAPI(Resource):
     def get (self, endpoint, command):
         endpoint=endpoints[endpoint];
         command=command.replace("_","/");
-        return json.loads(endpoint.send_get(command));
+        response=endpoint.send_get(command)
+        try:
+            return json.loads(response);
+        except:
+            parser=MieleAttributeParser();
+            return [str(x) for x in parser.parseBytes(response)];
+#            return str(binascii.hexlify(response, " "));
 
 class SetDeviceActionAPI(Resource):
     def __init__ (self):
