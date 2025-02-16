@@ -50,6 +50,20 @@ class DOP2Annotator(dict):
         if (len(tup)!=4):
             raise Exception("not an IP");
         return f"{tup[0]}.{tup[1]}.{tup[2]}.{tup[3]}"
+
+class DOP2_SF_Value (DOP2Annotator): #GLOBAL_SF_Value
+    def getLeaf():
+        return [2, 105];
+    def readFields (self):
+        self["enumSfId"]=self.getAtIndex(1);
+        self["validity"]=self.getAtIndex(2);
+        self["enumValueInterpretation"]=self.getAtIndex(3);
+        for count, x in enumerate(["currentValue", "min", "max", "default"], start=4): #4-7
+            self[x]=self.getAtIndex(count);
+        self["listRef"]=self.getAtIndex(7)
+        self["stepSize"]=self.getAtIndex(9)
+        self["extValue"]=self.getBoolAtIndex (10)
+        self["fineAdjusted"]=self.getBoolAtIndex (11)
 #actuatorstate is 20 bools, 0x14 0x00 0x00...
 class DOP2LastUpdateInfo (DOP2Annotator):
     def getLeaf():
@@ -277,6 +291,7 @@ class DOP2XKMConfigIP (DOP2Annotator):
         self["wifiChannel"]=self.getAtIndex(11);
 
 DOP2Annotators = [
+DOP2_SF_Value,
 DOP2LastUpdateInfo,
 DOP2UpdateControl,
 DOP2FileInfo,
