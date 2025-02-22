@@ -128,6 +128,7 @@ ______________________________________________________________
 G7364	     | Dishwasher  |      X     |      X       |  ?
 H7164        | Oven        |      X     |      ?       |  ?
 TWD360       | Dryer       |      X     |      ?       |  No
+WWF360-WPS   | Washer      |      X     |      ?       |  ?
 WXF660 (W1)  | Washer      |      X     |      X       |  X
 
 Additional reports appreciated.

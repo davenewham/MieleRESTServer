@@ -1,3 +1,6 @@
-flask
+cryptography
+Flask
 flask_restful
-crypto
+numpy
+PyYAML
+Requests
