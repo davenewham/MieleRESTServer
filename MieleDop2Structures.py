@@ -104,14 +104,19 @@ class DOP2DeviceCombinedState (DOP2Annotator): #TBD -- deviceCombiState
         self["operationState"]=self.getAtIndex(2);
         self["processState"]=self.getAtIndex(3);
 
+class DOP2_PS_Context (DOP2Annotator): # on a washer, this has a "ContextParaWM" as field 3, with all other fields missing
+    def getLeaf():
+        return [2, 1574]
+    def readFields(self):
+        pass;
 class DOP2CS_DeviceContext (DOP2Annotator): #TBD
     def getLeaf():
         return [999,999];
-
 class DOP2_PS_Select (DOP2Annotator): #GLOBAL_PS_SELECT -- some fields are missing if no selection is made
     def getLeaf():
         return [2, 1577]
     def readFields (self):
+        self["programId"]=self.getAtIndex(1);
         self["selectionParameter"]=self.getAtIndex(3);
 class DOP2ProgramList (DOP2Annotator): # Global_ProgramList .. not the same as CS_ProgramLIst
     def getLeaf():
@@ -128,10 +133,12 @@ class DOP2DeviceContext (DOP2Annotator): #GLOBAL_DeviceContext -- not sure yet
         return [2,1585];
     def readFields(self):
         self["deviceCombinedState"]=self.getAtIndex(1);
-        self["progAttributes"]=self.getAtIndex(2);
-        self["deviceAttributes"]=self.getAtIndex(3);
-        self["sessionOwnerEnum"]=self.getAtIndex(10);
-        self["mobileStartActive"]=self.getBoolAtIndex(11);
+#       self["programSelectionAttributes"]=self.getAtIndex(5); #5/1 is programID, 5/2 is programPhaseId
+#        self["deviceAttributes"]=self.getAtIndex(6);
+
+#        self["progAttributes"]=self.getAtIndex(2);
+#        self["sessionOwnerEnum"]=self.getAtIndex(10);
+#        self["mobileStartActive"]=self.getBoolAtIndex(11);
 #        self["requestTimeSync"]=self.getBoolAtIndex(13);
 class DOP2OperationCycleCounter (DOP2Annotator): # CS_OperationCycleCounter (this shares a signature with "OperationRuntimeCounter)
     def getLeaf():
@@ -225,6 +232,27 @@ class DOP2ProcessData (DOP2Annotator):
         self["waterConsumedInLitres"]=self.getValueWithInterpretationAtIndex(17); #wasserverbrauchInLiter
         self["rpmCurrent"]=self.getValueWithInterpretationAtIndex(27); #wasserverbrauchInLiter
 
+class DOP2DeviceIdent (DOP2Annotator): # GLOBAL_DeviceIdent
+    def getLeaf():
+        return [2, 144];
+    def readFields(self):
+        self["mieleDeviceId"]=self.getAtIndex(1);
+        self["protocolType"]=self.getAtIndex(2);
+        self["supportedFunctions"]=self.getArrayToStrAtIndex(3)
+        self["supportedApplications"]=self.getArrayToStrAtIndex(5);
+
+class DOP2_SF_List (DOP2Annotator): #GLOBAL_SF_LIST
+    def getLeaf():
+        return [2, 114];
+    def readFields (self):
+        self["validElementCount"]=self.getAtIndex(1);
+        self["validElements"]=self.getArrayToStrAtIndex(2);
+class DOP2DateTime (DOP2Annotator): #GLOBAL_DateTime
+    def getLeaf():
+        return [14, 122];
+    def readFields (self):
+        self["utcTime"]=self.getAtIndex(1)
+        self["offset"]=self.getAtIndex(2);
 
 class DOP2ActuatorData (DOP2Annotator): #CDV_ActuatorData
     def getLeaf():
@@ -307,7 +335,9 @@ class DOP2XKMConfigIP (DOP2Annotator):
 
 DOP2Annotators = [
 DOP2_PS_Select,
+DOP2DeviceIdent,
 DOP2ProgramList,
+DOP2_SF_List,
 DOP2_SF_Value,
 DOP2LastUpdateInfo,
 DOP2UpdateControl,
@@ -325,4 +355,6 @@ DOP2SoftwareBuild,
 DOP2XKMState,
 DOP2XKMIdentLabel,
 DOP2XKMConfigSSIDList,
+DOP2DateTime,
+DOP2DeviceContext,
 DOP2XKMConfigIP ]

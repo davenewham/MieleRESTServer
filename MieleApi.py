@@ -19,6 +19,9 @@
 #
 from enum import Enum
 
+class SfValueId (Enum):
+        NoneSelected=0
+
 class ProgramType:
         BuiltInFunction = 1
         UserDefined = 2
