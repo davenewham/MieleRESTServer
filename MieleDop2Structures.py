@@ -108,6 +108,21 @@ class DOP2CS_DeviceContext (DOP2Annotator): #TBD
     def getLeaf():
         return [999,999];
 
+class DOP2_PS_Select (DOP2Annotator): #GLOBAL_PS_SELECT -- some fields are missing if no selection is made
+    def getLeaf():
+        return [2, 1577]
+    def readFields (self):
+        self["selectionParameter"]=self.getAtIndex(3);
+class DOP2ProgramList (DOP2Annotator): # Global_ProgramList .. not the same as CS_ProgramLIst
+    def getLeaf():
+        return [2, 1584];
+    def readFields(self):
+        self["valid"]=self.getAtIndex(1);
+        self["programIds"]=self.getArrayToStrAtIndex(2);
+#        self["remainingTime"]=self.getArrayToStrAtIndex(3);
+#        self["temperature"]=self.getArrayToStrAtIndex(4);
+#        self["temperatureInfo"]=self.getArrayToStrAtIndex(5);
+
 class DOP2DeviceContext (DOP2Annotator): #GLOBAL_DeviceContext -- not sure yet
     def getLeaf():
         return [2,1585];
@@ -291,6 +306,8 @@ class DOP2XKMConfigIP (DOP2Annotator):
         self["wifiChannel"]=self.getAtIndex(11);
 
 DOP2Annotators = [
+DOP2_PS_Select,
+DOP2ProgramList,
 DOP2_SF_Value,
 DOP2LastUpdateInfo,
 DOP2UpdateControl,

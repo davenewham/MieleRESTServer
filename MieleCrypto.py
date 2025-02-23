@@ -129,6 +129,12 @@ class MieleCryptoProvider:
         header= f"Authorization: MieleH256 {self.provisioningInfo.groupid}:{signature}"
         header= f"MieleH256 {self.provisioningInfo.groupid}:{signature}"
         return header;
+    def pad_body_bytes (self, payload):
+        if (len(payload)==0):
+            return [];
+        else:
+            payload.rjust(64, 0x20);
+            return payload;
     def pad_body_str (self, payload):
         if (len(payload)==0):
             return "";
@@ -144,8 +150,11 @@ class MieleCryptoProvider:
         acceptHeader= "application/vnd.miele.v1+json"; #the device is not looking at this
         contentTypeHeader="application / vnd.miele.v1 + json; charset = utf - 8"
         date="Thu, 01 Jan 1970 02:09:22 GMT" # the device is not looking at this either
-        payload=self.pad_body_str(payload);
-        print(payload);
+        if (isinstance (payload, str)):
+            payload=self.pad_body_str(payload);
+            print(f"STring payload: " + payload);
+        else:
+            payload=self.pad_body_bytes(payload);
         authHeader=self.get_auth_header(host=host, httpMethod=httpMethod, date=date, resourcePath=resourcePath, acceptHeader=acceptHeader, contentTypeHeader=contentTypeHeader, body=payload)
         if (len (payload) > 0):
             iv = self.iv_from_auth_header(authHeader);
@@ -211,7 +220,8 @@ class MieleCryptoProvider:
                 print(f"reading leaf {leafId} in node {x}");
                 try:
                     dopTree[x][leafId]={};
-                    [leafData, leafBytes]=self.readDop2Leaf(host, x, deviceRoute, leafId);
+                    [leafData, leafBytes]=self.readDop2Leaf(host, x, deviceRoute, leafId, 0, 0);
+
                     dopTreeBinary[x][leafId]=str(binascii.hexlify(leafBytes));
                     print(f"read leaf {leafId} in node {x}:");
                     for fieldId, fieldData in enumerate(leafData):
@@ -243,10 +253,13 @@ class MieleCryptoProvider:
 #            f.write(dump);
 #        print([x.keys() for x in dopTree.values()]);
         return {"dopTreeAnnotated": dopTreeAnnotated, "dopTreeDecoded": dopTree, "dopTreeBinary":dopTreeBinary};
-    def readDop2Leaf (self, host, node, deviceRoute, leaf):
+    def writeDop2Leaf (self, host, deviceRoute, unit, attribute, payload, idx1=0, idx2=0):
+        response=self.sendHttpRequest(httpMethod="PUT", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{unit}/{attribute}?idx1={idx1}&idx2={idx2}", payload=payload);
+        print(f"Sent PUT request to write {unit}/{attribute}, got response {response}");
+    def readDop2Leaf (self, host, node, deviceRoute, leaf, idx1=0, idx2=0):
         parser=MieleAttributeParser();
         fields=[];
-        response=self.sendHttpRequest(httpMethod="GET", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{node}/{leaf}");
+        response=self.sendHttpRequest(httpMethod="GET", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{node}/{leaf}?idx1={idx1}&idx2={idx2}");
         if (response):
             response=response[0]
         print(response)

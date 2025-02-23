@@ -86,6 +86,12 @@ class MieleEndpointConfig:
             self.device_route=list(j.keys())[0];
         else:
             raise Exception("Error autodetecting route");
+    def readDop2Leaf (self, unit, attribute, idx1, idx2):
+        [attributes, leafData] = self.cryptoProvider.readDop2Leaf(self.host, unit, self.device_route, attribute, idx1, idx2);
+        return [str(x) for x in attributes];
+
+    def writeDop2Leaf (self, unit, attribute, payload):
+        return self.cryptoProvider.writeDop2Leaf(self.host, self.device_route, unit, attribute, payload);
     def walkdop2tree (self):
         return self.cryptoProvider.readDop2Recursive(self.host, self.device_route);
     def get_device_summary_raw(self):
@@ -121,12 +127,21 @@ class MieleEndpointConfig:
             j["ElapsedMinutes"]=-1
             pass;
         return j;
-    def set_device_action (self):
+    def set_process_action (self):
         command=json.dumps({"ProcessAction": 1});
         print(command)
         decrypted, response=self.cryptoProvider.sendHttpRequest(host=self.host, httpMethod="PUT", resourcePath=f"Devices/{self.device_route}/State", payload=command);
         print(decrypted);
         return json.loads(decrypted)
+
+    def set_device_action(self):
+        command=json.dumps({"DeviceAction": 2});
+#        command=json.dumps({"StandbyState": 0});
+        print(command)
+        decrypted, response=self.cryptoProvider.sendHttpRequest(host=self.host, httpMethod="PUT", resourcePath=f"Devices/{self.device_route}/State", payload=command);
+        print(decrypted);
+        return json.loads(decrypted)
+
     def send_get (self, path):
         try:
             response= self.cryptoProvider.sendHttpRequest(host=self.host, resourcePath=path)[0];
@@ -147,7 +162,7 @@ class CommandPassthroughAPI(Resource):
         self.reqparse.add_argument('command', type=str, required=True, help='',location='json');
     def get (self, endpoint, command):
         endpoint=endpoints[endpoint];
-        command=command.replace("_","/");
+        command=command.replace("_","/").replace("-","");
         response=endpoint.send_get(command)
         try:
             return json.loads(response);
@@ -155,8 +170,46 @@ class CommandPassthroughAPI(Resource):
             parser=MieleAttributeParser();
             return [str(x) for x in parser.parseBytes(response)];
 #            return str(binascii.hexlify(response, " "));
+class Dop2LeafAPI(Resource):
+    def __init__(self):
+        self.reqparse = reqparse.RequestParser();
+        self.reqparse.add_argument('endpoint', type=str, required=True, help='',location='json');
+        self.reqparse.add_argument('unit', type=int, required=True, help='',location='json');
+        self.reqparse.add_argument('attribute', type=int, required=True, help='',location='json');
+    def put (self, endpoint, unit, attribute):
+        endpoint=endpoints[endpoint];
+        print(f"PUT {unit}/attribute")
+        response=endpoint.writeDop2Leaf(unit, attribute, b"");
+#        try:
+#           return json.loads(response);
+#        except:
+#            parser=MieleAttributeParser();
+#            return [str(x) for x in parser.parseBytes(response)];
+    def get(self, endpoint, unit, attribute, idx1, idx2):
+#        return self.put(endpoint, unit, attribute);
+        endpoint=endpoints[endpoint];
+        print(f"GET {unit}/attribute?idx1={idx1}&idx2={idx2}")
+#        response=endpoint.readDop2Leaf(unit, attribute, b"", idx1=12037, idx2=0);
+        leaf = endpoint.readDop2Leaf(unit, attribute, idx1=idx1, idx2=idx2);
+        return [str(x) for x in leaf];
+#        try:
+#           return json.loads(response);
+#        except:
+#            parser=MieleAttributeParser();
+#            return [str(x) for x in parser.parseBytes(response)];
+
 
 class SetDeviceActionAPI(Resource):
+    def __init__ (self):
+        self.reqparse = reqparse.RequestParser();
+        self.reqparse.add_argument('endpoint', type=str, required=False, help='',location='json');
+    def get (self, endpoint):
+        endpoint=endpoints[endpoint];
+        j=endpoint.set_device_action();
+        return j;
+
+
+class SetProcessActionAPI(Resource):
     def __init__ (self):
         self.reqparse = reqparse.RequestParser();
         self.reqparse.add_argument('endpoint', type=str, required=False, help='',location='json');
@@ -168,7 +221,7 @@ class SetDeviceActionAPI(Resource):
 
     def post (self, endpoint):
         endpoint=endpoints[endpoint];
-        j=endpoint.set_device_action();
+        j=endpoint.set_process_action();
         return j;
 class EndpointAPI(Resource):
     def __init__ (self):
@@ -239,8 +292,10 @@ if __name__ == '__main__':
     api.add_resource(DeviceSummaryAPI, '/generate-summary/<string:endpoint>')
     api.add_resource(WalkDOP2TreeAPI, '/walkdop2tree/<string:endpoint>')
     api.add_resource(EndpointAPI, '/endpoints', '/endpoints/<string:endpoint>')
-    api.add_resource(SetDeviceActionAPI, '/start/<string:endpoint>')
+    api.add_resource(SetProcessActionAPI, '/start/<string:endpoint>')
+    api.add_resource(SetDeviceActionAPI, '/wakeup/<string:endpoint>')
     api.add_resource(CommandPassthroughAPI, '/command/<string:endpoint>/<string:command>')
+    api.add_resource(Dop2LeafAPI, '/dop2leaf/<string:endpoint>/<int:unit>/<int:attribute>/<int:idx1>/<int:idx2>')
 
     if (cmdargs.webui):
         @app.route("/webui", strict_slashes=False)
