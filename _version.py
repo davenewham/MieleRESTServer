@@ -1,4 +1,4 @@
-#
+#!/usr/bin/python3
 # Copyright (c) 2025 Alexander Kappner.
 #
 # This file is part of MieleRESTServer 

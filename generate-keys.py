@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/python3
 #
 # Copyright (c) 2025 Alexander Kappner.
 #
