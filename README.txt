@@ -94,6 +94,20 @@ You should see a JSON file that shows information from all configured devices.
 If you want to use Home Assistant to query and display the device status, paste
 the configuration fragment into your home assistant config.
 
+=== QUERYING AND SETTING DEVICE INFORMATION ===
+
+After a period of inactivity, the device will go into a sleep mode. When in
+sleep mode, it returns invalid data through the DOP2 endpoint. To wake the
+device up from sleep, use the /wakeup/<device name> endpoint. 
+
+Some Miele devices expose an internal binary protocol under the endpoint "DOP2".
+
+DOP2 information can be retrieved from the /walkdop2tree/<device name>
+endpoint. Not all DOP2 data structures can be decoded yet.
+
+Individual DOP2 attributes can be read from, and written, by GET and POST
+to the /dop2leaf/<device name> endpoint. 
+
 === USING REMOTE START ===
 
 Some Miele devices can be started remotely. They will only start remotely
@@ -111,11 +125,7 @@ Your device should start immediately, cutting the timer short.
 
 === TODO ===
 
-Some Miele devices expose an internal binary protocol under the endpoint "DOP2".
-Understanding this protocol is an ongoing reverse engineering effort.
-
-There is some code that can make DOP2 requests and parse responses from the
-Miele device, but so far, not all information can be retrieved. 
+-- Provide frontend for device configuration and program selection
 
 Patches/pull requests welcome.
 

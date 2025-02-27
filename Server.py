@@ -24,7 +24,7 @@ from MieleCrypto import MieleProvisioningInfo, MieleCryptoProvider
 from MieleApi import *
 from MieleErrors import *
 from MieleDop2 import *
-from flask import render_template
+from flask import render_template,request
 
 import json
 import time
@@ -88,7 +88,7 @@ class MieleEndpointConfig:
             raise Exception("Error autodetecting route");
     def readDop2Leaf (self, unit, attribute, idx1, idx2):
         [attributes, leafData] = self.cryptoProvider.readDop2Leaf(self.host, unit, self.device_route, attribute, idx1, idx2);
-        return [str(x) for x in attributes];
+        return [ [str(x) for x in attributes], leafData];
 
     def writeDop2Leaf (self, unit, attribute, payload):
         return self.cryptoProvider.writeDop2Leaf(self.host, self.device_route, unit, attribute, payload);
@@ -176,10 +176,20 @@ class Dop2LeafAPI(Resource):
         self.reqparse.add_argument('endpoint', type=str, required=True, help='',location='json');
         self.reqparse.add_argument('unit', type=int, required=True, help='',location='json');
         self.reqparse.add_argument('attribute', type=int, required=True, help='',location='json');
-    def put (self, endpoint, unit, attribute):
+    def post(self, endpoint, unit, attribute, idx1, idx2):
         endpoint=endpoints[endpoint];
-        print(f"PUT {unit}/attribute")
-        response=endpoint.writeDop2Leaf(unit, attribute, b"");
+        payload=request.get_data();
+        print(f"PUT {unit}/{attribute}, payload={binascii.hexlify(payload)}")
+##        b="000e000e008200010001000100010400";
+#        b="FFFF000e007a00010001000200010b0000000000000000000209000000002020"
+##        b="001c000e007a00010001000200010b000000000010000000020900001000" #this sets the time 14/122
+#       b="00190002062f0000000000030001070000000205000000030500002020202020" #test user request
+#        b="00070002062f0000000000010001070000000020202020202020202020202020" #user request message has only ONE byte
+#       b="00070002062f0000000000010001070000000020202020202020202020202020" #user request message has only ONE byte
+#        b="000e0002062f0001000100010001070000002020202020202020202020202020"
+  ##      payload=binascii.unhexlify(b);
+        [decrypted, response] =endpoint.writeDop2Leaf(unit, attribute, payload);
+        return {"StatusCode" : response.status_code }
 #        try:
 #           return json.loads(response);
 #        except:
@@ -190,8 +200,8 @@ class Dop2LeafAPI(Resource):
         endpoint=endpoints[endpoint];
         print(f"GET {unit}/attribute?idx1={idx1}&idx2={idx2}")
 #        response=endpoint.readDop2Leaf(unit, attribute, b"", idx1=12037, idx2=0);
-        leaf = endpoint.readDop2Leaf(unit, attribute, idx1=idx1, idx2=idx2);
-        return [str(x) for x in leaf];
+        leaf, data = endpoint.readDop2Leaf(unit, attribute, idx1=idx1, idx2=idx2);
+        return {"decoded": [str(x) for x in leaf], "binary":str(binascii.hexlify(data))}
 #        try:
 #           return json.loads(response);
 #        except:

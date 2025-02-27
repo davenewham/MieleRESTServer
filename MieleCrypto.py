@@ -117,8 +117,20 @@ class MieleCryptoProvider:
         return ciphertext;
 
     def sign (self, httpMethod="PUT", host="127.0.0.1", date="Fri, 25 Jan 2025 19:57:40 GMT", acceptHeader="application/vnd.miele.v2+json; charset=utf-8",resourcePath="", contentTypeHeader="",body=""):
-        payload=f"{httpMethod}\n{host}/{resourcePath}\n{contentTypeHeader}\n{acceptHeader}\n{date}\n{body}";
-        payload_bytes=payload.encode('utf-8');
+#        payload=f"{httpMethod}\n{host}/{resourcePath}\n{contentTypeHeader}\n{acceptHeader}\n{date}\n{body}";
+#        payload_bytes=payload.encode('utf-8');
+        if (isinstance(body,str)):
+            body_bytes=body.encode('utf-8');
+        else:
+            body_bytes=body
+
+        payload=f"{httpMethod}\n{host}/{resourcePath}\n{contentTypeHeader}\n{acceptHeader}\n{date}\n";
+        payload_bytes=payload.encode('utf-8')+ body_bytes;
+#        if (isinstance(body), str):
+#            body=bytes(body, 'utf-8');
+#        payload=f"{httpMethod}\n{host}/{resourcePath}\n{contentTypeHeader}\n{acceptHeader}\n{date}\n";
+#        payload_bytes=payload.encode('utf-8') + body;
+
         hmac_obj = hmac.new(self.provisioningInfo.get_signature_key(), payload_bytes, hashlib.sha256);
         digest=hmac_obj.hexdigest().upper();
         print(digest);
@@ -130,11 +142,13 @@ class MieleCryptoProvider:
         header= f"MieleH256 {self.provisioningInfo.groupid}:{signature}"
         return header;
     def pad_body_bytes (self, payload):
-        if (len(payload)==0):
-            return [];
-        else:
-            payload.rjust(64, 0x20);
+        blocksize=16;
+        if (len(payload) % blocksize == 0): #no alignment needed
             return payload;
+        padding=blocksize - (len(payload) % blocksize);
+        print (f"padding with {padding} bytes")
+        return payload.ljust(len(payload) + padding, b'\x20');
+#        return payload;
     def pad_body_str (self, payload):
         if (len(payload)==0):
             return "";
@@ -144,7 +158,9 @@ class MieleCryptoProvider:
 #        payload=payload.encode('ascii')
         return payload;
     def encrypt_payload (self, payload, iv):
-        return MieleCryptoProvider.encrypt_bytes(payload.encode('utf-8'), self.provisioningInfo.get_aes_key(), iv)
+        if (isinstance(payload, str)):
+            payload=payload.encode('utf-8');
+        return MieleCryptoProvider.encrypt_bytes(payload, self.provisioningInfo.get_aes_key(), iv)
     def sendHttpRequest(self, httpMethod="GET", host="10.0.0.11", resourcePath="Devices/", payload=""):
         print(f"Sending HTTP request to {host}, resourcePath={resourcePath}");
         acceptHeader= "application/vnd.miele.v1+json"; #the device is not looking at this
@@ -175,6 +191,11 @@ class MieleCryptoProvider:
         if (response.status_code == 200):
             decrypted=self.decrypt_response(response);
             return [decrypted, response];
+        if (response.status_code == 204):
+            return [b"", response];
+        return [b"", response];
+
+        raise Exception(f"HTTP Request failed" + str(response))
     def process_response(response):
         if (response.status_code != 200):
             raise Exception(f"Device sent error code: {response}");
@@ -255,7 +276,8 @@ class MieleCryptoProvider:
         return {"dopTreeAnnotated": dopTreeAnnotated, "dopTreeDecoded": dopTree, "dopTreeBinary":dopTreeBinary};
     def writeDop2Leaf (self, host, deviceRoute, unit, attribute, payload, idx1=0, idx2=0):
         response=self.sendHttpRequest(httpMethod="PUT", host=host, resourcePath=f"Devices/{deviceRoute}/DOP2/{unit}/{attribute}?idx1={idx1}&idx2={idx2}", payload=payload);
-        print(f"Sent PUT request to write {unit}/{attribute}, got response {response}");
+        print(f"Sent PUT request to write {unit}/{attribute}, {len(payload)} bytes payload sent, got response {response}");
+        return response
     def readDop2Leaf (self, host, node, deviceRoute, leaf, idx1=0, idx2=0):
         parser=MieleAttributeParser();
         fields=[];

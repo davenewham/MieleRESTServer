@@ -20,11 +20,13 @@
 
 
 from binascii import hexlify
-
+from MieleApi import ApplianceState, ProcessState, OperationState, SfValueId,DeviceId, ProtocolType
 class DOP2Annotator(dict):
     def __init__ (self, tree):
         self.tree=tree;
         super().__init__()
+    def getIntAtIndex (self, i):
+        return int(self.tree[i].value)
     def getAtIndex(self, i):
         return str(self.tree[i].value);
     def getArrayToStrAtIndex (self, i):
@@ -44,6 +46,17 @@ class DOP2Annotator(dict):
         return value.value;
     def getBytesAtIndex (self, i):
         return str(hexlify(self.tree[i].value, " "));
+    def getEnumAsStrAtIndex (self, i, enumType):
+        try:
+            return str(enumType(self.getIntAtIndex(i)).name);
+        except:
+            return f"UNKNOWN: {self.getAtIndex(i)}"
+    def getEnumFlagsAtIndex (self, i, enumType):
+        try:
+            return [str(enumType(x.value).name) for x in self.tree[i].value]
+        except Exception as e:
+            return f"UNKNOWN: {str(e)}"
+
     def getIpAtIndex(self, i):
 #         return str(self.tree[i])
         tup=list(self.tree[i].value)
@@ -51,11 +64,11 @@ class DOP2Annotator(dict):
             raise Exception("not an IP");
         return f"{tup[0]}.{tup[1]}.{tup[2]}.{tup[3]}"
 
-class DOP2_SF_Value (DOP2Annotator): #GLOBAL_SF_Value
+class DOP2_SF_Value (DOP2Annotator): #GLOBAL_SF_Value, referenced as "SetSettings"
     def getLeaf():
         return [2, 105];
     def readFields (self):
-        self["enumSfId"]=self.getAtIndex(1);
+        self["enumSfId"]=self.getEnumAsStrAtIndex(1, SfValueId);
         self["validity"]=self.getAtIndex(2);
         self["enumValueInterpretation"]=self.getAtIndex(3);
         for count, x in enumerate(["currentValue", "min", "max", "default"], start=4): #4-7
@@ -65,12 +78,19 @@ class DOP2_SF_Value (DOP2Annotator): #GLOBAL_SF_Value
         self["extValue"]=self.getBoolAtIndex (10)
         self["fineAdjusted"]=self.getBoolAtIndex (11)
 #actuatorstate is 20 bools, 0x14 0x00 0x00...
-class DOP2LastUpdateInfo (DOP2Annotator):
+class DOP2LastUpdateInfo (DOP2Annotator): #FT_LastUpdateInfo
     def getLeaf():
         return [15, 199];
     def readFields(self):
         self["filename"]=self.getStringAtIndex(1);
 
+class DOP2UserRequest (DOP2Annotator): # GLOBAL_USER_REQ_Request referenced in ExecuteWmWdAction -- this does not show up if device is sleeping
+    def getLeaf():
+        return [2, 1583]; #sometimes 2, 1583?
+    def readFields(self):
+        self["userRequestId"]=self.getEnumAtIndex(1);
+        self["parameter0"]=self.getAtIndex(2);
+        self["parameter1"]=self.getAtIndex(3);
 class DOP2UpdateControl (DOP2Annotator): #FTUpdateControl
     def getLeaf():
         return [15, 170];
@@ -80,6 +100,17 @@ class DOP2UpdateControl (DOP2Annotator): #FTUpdateControl
         self["flashAccessible"]=self.getAtIndex(3);
         self["progress"]=self.getAtIndex(4);
 
+class DOP2SoftwareIds (DOP2Annotator): #SYS_SoftwareIds
+    def getLeaf():
+        return [1, 17] #also [2, 17]
+    def readFields (self):
+        self["numberValidSoftwareIds"]=self.getAtIndex(1);
+
+class DOP2NotificationShow (DOP2Annotator): #GLOBAL_NTFCTN_Show
+    def getLeaf():
+        return [2, 131];
+    def readFields(self): #TODO
+        pass;
 class DOP2FileInfo (DOP2Annotator): #FTFileInfo
     def getLeaf():
         return [15, 1588];
@@ -89,8 +120,17 @@ class DOP2FileInfo (DOP2Annotator): #FTFileInfo
         self["currentSize"]=self.getAtIndex(3);
         self["maxSize"]=self.getAtIndex(4);
         self["crc32"]=self.getAtIndex(5);
+class DOP2FileWrite (DOP2Annotator): #FT_FileWrite
+    def getLeaf():
+        return [15, 1590];
+    def readFields(self):
+        self["fileOperation"]=self.getStringAtIndex(1); #EnumFileOperation
+        self["fileName"]=self.getStringAtIndex(2);
+        self["address"]=self.getStringAtIndex(3);
+        self["size"]=self.getStringAtIndex(4);
+        self["data"]=self.getStringAtIndex(5);
 
-class DOP2RSAPublicKey (DOP2Annotator):
+class DOP2RSAPublicKey (DOP2Annotator): #FT_PublicKey
     def getLeaf():
         return [15, 287];
     def readFields(self):
@@ -100,11 +140,12 @@ class DOP2DeviceCombinedState (DOP2Annotator): #TBD -- deviceCombiState
     def getLeaf():
         return [2,1586];
     def readFields(self):
-        self["applianceState"]=self.getAtIndex(1);
-        self["operationState"]=self.getAtIndex(2);
-        self["processState"]=self.getAtIndex(3);
+#        self["applianceState"]=self.getAtIndex(1);
+        self["applianceState"]=self.getEnumAsStrAtIndex(1, ApplianceState);
+        self["operationState"]=self.getEnumAsStrAtIndex(2, OperationState);
+        self["processState"]=self.getEnumAsStrAtIndex(3, ProcessState);
 
-class DOP2_PS_Context (DOP2Annotator): # on a washer, this has a "ContextParaWM" as field 3, with all other fields missing
+class DOP2_PS_Context (DOP2Annotator): # on a washer, this has a "ContextParaWM" as field 3, with all other fields missing. this has subentries for timesource, etc.
     def getLeaf():
         return [2, 1574]
     def readFields(self):
@@ -140,12 +181,14 @@ class DOP2DeviceContext (DOP2Annotator): #GLOBAL_DeviceContext -- not sure yet
 #        self["sessionOwnerEnum"]=self.getAtIndex(10);
 #        self["mobileStartActive"]=self.getBoolAtIndex(11);
 #        self["requestTimeSync"]=self.getBoolAtIndex(13);
-class DOP2OperationCycleCounter (DOP2Annotator): # CS_OperationCycleCounter (this shares a signature with "OperationRuntimeCounter)
+class DOP2NotificationAcknowledge (DOP2Annotator): # CS_OperationCycleCounter (this shares a signature with "OperationRuntimeCounter)
     def getLeaf():
-        return [2, 138]
+        return [2, 138] #acknowledge action!
     def readFields(self):
-        self["counterId"]=self.getAtIndex(1);
-        self["counterValue"]=self.getAtIndex(2);
+#        self["counterId"]=self.getAtIndex(1);
+#        self["counterValue"]=self.getAtIndex(2);
+         self["notificationMessageId"]=self.getAtIndex(2)
+         self["error"]=self.getAtIndex(3)
 class DOP2HoursOfOperation (DOP2Annotator): #CS_HoursOfOperation
     def getLeaf():
         return [2, 119];
@@ -236,17 +279,18 @@ class DOP2DeviceIdent (DOP2Annotator): # GLOBAL_DeviceIdent
     def getLeaf():
         return [2, 144];
     def readFields(self):
-        self["mieleDeviceId"]=self.getAtIndex(1);
-        self["protocolType"]=self.getAtIndex(2);
+        self["mieleDeviceId"]=self.getEnumAsStrAtIndex(1, DeviceId);
+        self["protocolType"]=self.getEnumAsStrAtIndex(2, ProtocolType);
         self["supportedFunctions"]=self.getArrayToStrAtIndex(3)
         self["supportedApplications"]=self.getArrayToStrAtIndex(5);
 
-class DOP2_SF_List (DOP2Annotator): #GLOBAL_SF_LIST
+class DOP2_SF_List (DOP2Annotator): #GLOBAL_SF_LIST.. this sometimes comes back empty when machine is in standby?
     def getLeaf():
         return [2, 114];
     def readFields (self):
         self["validElementCount"]=self.getAtIndex(1);
-        self["validElements"]=self.getArrayToStrAtIndex(2);
+#        self["validElements"]=self.getArrayToStrAtIndex(2);
+        self["validElements"]=self.getEnumFlagsAtIndex (2, SfValueId);
 class DOP2DateTime (DOP2Annotator): #GLOBAL_DateTime
     def getLeaf():
         return [14, 122];
@@ -301,6 +345,15 @@ class DOP2SoftwareBuild (DOP2Annotator): #CDV_SoftwareBuild
         self["id"] = self.getAtIndex(3);
         self["version"]=self.getAtIndex(4);
 
+class DOP2SysObjectId (DOP2Annotator):
+    def getLeaf():
+        return [1, 19]
+    def readFields(self):
+        self["objectId"]=self.getAtIndex(1);
+        self["instances"]=self.getAtIndex(2);
+        self["authRead"]=self.getAtIndex(3);
+        self["authWrite"]=self.getAtIndex(4);
+        self["authSubscribe"]=self.getAtIndex(5);
 class DOP2XKMState (DOP2Annotator):
     def getLeaf():
         return [14, 1568];
@@ -342,6 +395,7 @@ DOP2_SF_Value,
 DOP2LastUpdateInfo,
 DOP2UpdateControl,
 DOP2FileInfo,
+DOP2FileWrite,
 DOP2RSAPublicKey,
 DOP2PartName,
 DOP2DateOfTest,
@@ -353,8 +407,13 @@ DOP2ProcessData,
 DOP2DeviceState,
 DOP2SoftwareBuild,
 DOP2XKMState,
+DOP2NotificationAcknowledge,
 DOP2XKMIdentLabel,
 DOP2XKMConfigSSIDList,
 DOP2DateTime,
 DOP2DeviceContext,
+DOP2DeviceCombinedState,
+DOP2UserRequest,
+DOP2SoftwareIds,
+DOP2SysObjectId,
 DOP2XKMConfigIP ]
