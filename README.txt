@@ -15,8 +15,10 @@ the device if necessary through the local control panel.
 
 1) Connecting Miele device to WiFi
 
-Select "Miele@home" on the control panel of the Miele device. The device will
-open its own access point with an SSID starting with "Miele@home".
+Select "Miele@home" on the control panel of the Miele device. If the device offers
+you a choice between "Via WPS" or "Via App", choose "Via App". 
+
+The device will open its own access point with an SSID starting with "Miele@home".
 
 Observe the SSID of the local access point:
 
@@ -27,7 +29,14 @@ Observe the SSID of the local access point:
 	connect to the network with your device's serial number shown on its
 	sticker.
 
-Open a DHCP server to give the Miele device an IP. 
+Open a DHCP server to give the Miele device an IP. You will need to run an external
+DHCP server on the computer connecting to the Miele access point.
+
+I recommend dnsmasq, e.g.:
+
+> sudo dnsmasq --port 0 --no-daemon --dhcp-range=192.168.1.100,192.168.1.200 --dhcp-leasefile=/dev/null -z --conf-file=/dev/null --interface <your_wifi_interface_here>
+
+Observe the IP assigned to your Miele device.
 
 Go to the "helpers" directory.
 
@@ -59,7 +68,7 @@ Generate device keys using the provided "generate-keys.py" script.
 
 Then run the provisioning script with the IP of your Miele device. Example:
 
-./provision-keys.sh 192.168.1.50 ./keys.json
+./provision-key.sh 192.168.1.50 ./keys.json
 
 This will upload the generated device key to your Miele device. After this step,
 your Miele device will stop responding to unencrypted/unsigned network commands.
@@ -81,7 +90,9 @@ config to include the route to save the auto-detection step on startup.
 
 4)
 
-Install the server with ./install.sh
+Install the server with 
+
+> sudo ./install.sh
 
 5)
 
