@@ -146,6 +146,7 @@ Users have reported the following devices to be compatible:
 
 Device Model | Device Type | Basic Info | Remote Start | DOP2
 ______________________________________________________________
+G3385	     | Dishwasher  |      X     |      ?       |  ?
 G7364	     | Dishwasher  |      X     |      X       |  ?
 H7164        | Oven        |      X     |      ?       |  ?
 TWD360       | Dryer       |      X     |      ?       |  No
