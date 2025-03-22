@@ -64,6 +64,16 @@ class XkmRequest (IntEnum):
 
 class SfValueId (IntEnum):
         NONE = 0,
+        Global_Language=10000,
+        Global_DisplayBrightness=10001,
+        Global_DisplayContrast=10002,
+        Global_VolumeToneSignal=10003,
+        Global_VolumeToneKey=10004,
+        Global_DisplayTime=10005,
+        Global_TimePresentation=10006,
+        Global_WaterHardness=10010,
+        Global_SuperVisionDisplay=10011,
+
         Washer_DetergentTypeContainerOne = 12005,
         Washer_DetergentAmountContainerOne = 12006,
         Washer_DetergentTypeContainerTwo = 12007,

@@ -24,6 +24,7 @@ from MieleCrypto import MieleProvisioningInfo, MieleCryptoProvider
 from MieleApi import *
 from MieleErrors import *
 from MieleDop2 import *
+from MieleDop2Structures import *
 from flask import render_template,request
 
 import json
@@ -89,6 +90,10 @@ class MieleEndpointConfig:
     def readDop2Leaf (self, unit, attribute, idx1, idx2):
         [attributes, leafData] = self.cryptoProvider.readDop2Leaf(self.host, unit, self.device_route, attribute, idx1, idx2);
         return [ [str(x) for x in attributes], leafData];
+
+    def readDop2LeafRaw (self, unit, attribute, idx1, idx2):
+        [attributes, leafData] = self.cryptoProvider.readDop2Leaf(self.host, unit, self.device_route, attribute, idx1, idx2);
+        return [attributes, leafData]
 
     def writeDop2Leaf (self, unit, attribute, payload):
         return self.cryptoProvider.writeDop2Leaf(self.host, self.device_route, unit, attribute, payload);
@@ -170,6 +175,29 @@ class CommandPassthroughAPI(Resource):
             parser=MieleAttributeParser();
             return [str(x) for x in parser.parseBytes(response)];
 #            return str(binascii.hexlify(response, " "));
+class Dop2SettingAPI(Resource):
+    def __init__(self):
+        self.reqparse = reqparse.RequestParser();
+        self.reqparse.add_argument('endpoint', type=str, required=True, help='',location='json');
+        self.reqparse.add_argument('setting', type=str, required=True, help='',location='json');
+    def get (self, endpoint, setting):
+        endpoint=endpoints[endpoint];
+        try:
+            settingInt=int(setting);
+        except:
+            settingInt=SfValueId[setting];
+        [leafData, leafBytes] = endpoint.readDop2LeafRaw(2, 105, idx1=settingInt, idx2=0);
+        leaf={}
+        for fieldId, fieldData in enumerate(leafData):
+            fieldId=fieldId+1 #DOP uses one-based index
+            leaf[fieldId]=fieldData;
+        print(leaf)
+        ann=DOP2_SF_Value(leaf);
+        ann.readFields();
+        return ann;
+#        return {"decoded": [str(x) for x in leaf], "binary":str(binascii.hexlify(data))}
+
+
 class Dop2LeafAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser();
@@ -305,7 +333,9 @@ if __name__ == '__main__':
     api.add_resource(SetProcessActionAPI, '/start/<string:endpoint>')
     api.add_resource(SetDeviceActionAPI, '/wakeup/<string:endpoint>')
     api.add_resource(CommandPassthroughAPI, '/command/<string:endpoint>/<string:command>')
+
     api.add_resource(Dop2LeafAPI, '/dop2leaf/<string:endpoint>/<int:unit>/<int:attribute>/<int:idx1>/<int:idx2>')
+    api.add_resource(Dop2SettingAPI, '/dop2setting/<string:endpoint>/<string:setting>')
 
     if (cmdargs.webui):
         @app.route("/webui", strict_slashes=False)
