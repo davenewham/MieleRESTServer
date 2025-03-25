@@ -134,6 +134,15 @@ The easiest way to program it is to set up a timer on the local control panel.
 Once the timer is running, send a POST request to /start/<device name>.
 Your device should start immediately, cutting the timer short.
 
+Some devices require a configuration option ("Mode 97") set on the local control panel to allow remote start.
+Counter-intuitively, this is true even if the selector knob is turned to "Remote Start". 
+If remote start does not work, and the /start endpoint reports "DeviceRemoteStartCapable"
+as "false", this is an indication that the additional configuration option is required.
+
+For a video tutorial on how to set Mode 97, see:
+https://www.youtube.com/watch?v=X1uq7JEM2Fg
+
+
 === TODO ===
 
 -- Provide frontend for device configuration and program selection
@@ -146,12 +155,13 @@ Users have reported the following devices to be compatible:
 
 Device Model | Device Type | Basic Info | Remote Start | DOP2
 ______________________________________________________________
-G3385	     | Dishwasher  |      X     |      ?       |  ?
-G7364	     | Dishwasher  |      X     |      X       |  ?
-H7164        | Oven        |      X     |      ?       |  ?
-TWD360       | Dryer       |      X     |      ?       |  No
-WWF360-WPS   | Washer      |      X     |      ?       |  ?
-WXF660 (W1)  | Washer      |      X     |      X       |  X
+G3385	     | Dishwasher   |      X     |      ?       |  ?
+G7364	     | Dishwasher   |      X     |      X       |  ?
+H7164        | Oven         |      X     |      ?       |  ?
+TWD360       | Dryer        |      X     |      ?       |  No
+WTD-160	     | Washer/Dryer |      X     |      X       |  No
+WWF360-WPS   | Washer       |      X     |      ?       |  ?
+WXF660 (W1)  | Washer       |      X     |      X       |  X
 
 Additional reports appreciated.
 
