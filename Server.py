@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # Copyright (c) 2025 Alexander Kappner.
 #
-# This file is part of MieleRESTServer 
+# This file is part of MieleRESTServer
 # (see github).
 #
 # This program is free software: you can redistribute it and/or modify
@@ -103,34 +103,47 @@ class MieleEndpointConfig:
     def get_device_ident_raw (self):
         return self.send_get(f"Devices/{self.device_route}/Ident");
     def get_device_summary_annotated (self):
-        response=self.get_device_summary_raw();
-        j=json.loads(response)
-        response2=self.get_device_ident_raw();
-        j2=json.loads(response2)
-        j=j| j2;
-        MieleEndpointConfig.tryDecodeAndAdd(j, "ProgramPhase", ProgramPhase);
-        MieleEndpointConfig.tryDecodeAndAdd(j, "ProgramID", ProgramId);
-        MieleEndpointConfig.tryDecodeAndAdd(j, "Status", Status);
-        MieleEndpointConfig.tryDecodeAndAdd(j, "DeviceType", DeviceType);
-        MieleEndpointConfig.tryDecodeAndAdd(j, "DryingStep", DryingStep);
+        summary_response = self.get_device_summary_raw()
+        ident_response = self.get_device_ident_raw()
+        data = json.loads(summary_response) | json.loads(ident_response)
+
+        fields_to_decode = {
+            "ProgramPhase": ProgramPhase,
+            "ProgramID": ProgramId,
+            "Status": Status,
+            "DeviceType": DeviceType,
+            "DryingStep": DryingStep
+        }
+
+        for field, enum_class in fields_to_decode.items():
+            MieleEndpointConfig.tryDecodeAndAdd(data, field, enum_class)
+
         try:
-            elapsed=MieleHelpers.tuple_to_min(j["ElapsedTime"])
-            remaining=MieleHelpers.tuple_to_min(j["RemainingTime"])
-            total = elapsed + remaining;
-            if (total < 0.1):
-                progress=0.0;
+            elapsed = MieleHelpers.tuple_to_min(data["ElapsedTime"])
+            remaining = MieleHelpers.tuple_to_min(data["RemainingTime"])
+            total = elapsed + remaining
+
+            if total < 0.1:
+                progress = 0.0
             else:
-                progress=elapsed/(elapsed+remaining);
-                print(f"Progress: {100*progress:.2f}%");
-            j["RemainingMinutes"]=remaining;
-            j["ElapsedMinutes"]=elapsed;
-            j["Progress"]=str(progress);
+                progress = elapsed / total
+                print(f"Progress: {100*progress:.2f}%")
+
+            data.update({
+                "RemainingMinutes": remaining,
+                "ElapsedMinutes": elapsed,
+                "Progress": str(progress)
+            })
+
         except:
-            j["Progress"]=-1;
-            j["RemainingMinutes"]=-1
-            j["ElapsedMinutes"]=-1
-            pass;
-        return j;
+            data.update({
+                "Progress": -1,
+                "RemainingMinutes": -1,
+                "ElapsedMinutes": -1
+            })
+
+        return data
+
     def set_process_action (self):
         command=json.dumps({"ProcessAction": 1});
         print(command)
