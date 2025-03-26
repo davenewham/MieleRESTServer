@@ -68,13 +68,15 @@ class MieleEndpointConfig:
             self.autodetect_route();
             print(f'Autodetected device route for host {self.host}; please add "deviceRoute: "{self.device_route}" in your config file');
 
-    def tryDecodeAndAdd (j, key, e):
-        try:
-            toDecode=j[key];
-            j["Decoded"+key]=e(toDecode).name;
-            return j;
-        except:
-            return j;
+    def tryDecodeAndAdd (j, fields_to_decode):
+        for field, e in fields_to_decode.items():
+            try:
+                toDecode=j[field];
+                j["Decoded"+field]=e(toDecode).name;
+            except:
+                continue;
+        return j;
+
     def autodetect_route(self):
         response=self.send_get(f"Devices")
         j=json.loads(response)
@@ -101,8 +103,7 @@ class MieleEndpointConfig:
             "DryingStep": DryingStep
         }
 
-        for field, enum_class in fields_to_decode.items():
-            MieleEndpointConfig.tryDecodeAndAdd(data, field, enum_class)
+        data = MieleEndpointConfig.tryDecodeAndAdd(data, fields_to_decode)
 
         try:
             elapsed = MieleHelpers.tuple_to_min(data["ElapsedTime"])
