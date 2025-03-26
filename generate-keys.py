@@ -19,5 +19,4 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 import MieleCrypto
-import json
 print (MieleCrypto.MieleProvisioningInfo.generate_random().to_pairing_json())

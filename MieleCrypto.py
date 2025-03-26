@@ -17,15 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-import os
-import struct
-import numpy as np
 import hmac
 import hashlib
 import binascii
 import sys
 import json
-import pprint
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from MieleDop2 import MieleAttributeParser 
 from MieleDop2Structures import *

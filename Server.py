@@ -30,7 +30,6 @@ from flask import render_template,request
 import json
 import time
 import yaml
-import sys
 import argparse
 
 import binascii
