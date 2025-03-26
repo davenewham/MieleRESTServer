@@ -25,6 +25,7 @@ from MieleApi import *
 from MieleErrors import *
 from MieleDop2 import *
 from MieleDop2Structures import *
+from waitress import serve
 
 import json
 import time
@@ -238,4 +239,7 @@ if __name__ == '__main__':
     api.add_resource(SetProcessActionAPI, '/start/<string:endpoint>')
     api.add_resource(SetDeviceActionAPI, '/wakeup/<string:endpoint>')
 
-    app.run(debug=cmdargs.debug, host=cmdargs.bind, port=cmdargs.port);
+    if cmdargs.debug:
+        app.run(debug=True, host=cmdargs.bind, port=cmdargs.port)
+    else:
+        serve(app, host=cmdargs.bind, port=cmdargs.port)
