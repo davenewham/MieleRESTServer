@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-from _version import __version__
 from flask import Flask, jsonify, abort, make_response
 from flask_restful import Api, Resource, reqparse, fields, marshal
 from MieleCrypto import MieleProvisioningInfo, MieleCryptoProvider
@@ -214,7 +213,6 @@ if __name__ == '__main__':
                     prog=PRODUCTNAME,
                     description='Provides RESTful interface to Miele@home devices')
 
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument('-c', '--config', default=f"/etc/{PRODUCTNAME}.config", help="path to configuration file")
     parser.add_argument('-b', '--bind', default=f"127.0.0.1", help="IP address to bind to, default is local only")
     parser.add_argument('-p', '--port', default=5001, help="port to bind to, default is port 5001")
